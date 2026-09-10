@@ -1,0 +1,46 @@
+name: Source checks
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['site/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: source-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  swift:
+    name: Swift 6 (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+      - name: Resolve pinned dependencies
+        run: swift package --force-resolved-versions resolve
+      - name: Strict release tests
+        run: swift test -c release --disable-automatic-resolution -Xswiftc -warnings-as-errors
+      - name: Check universal development packaging
+        run: bash scripts/build.sh development
+      - name: Check scripts and website
+        run: |
+          for script in scripts/*.sh; do bash -n "$script"; done
+          python3 -m py_compile scripts/*.py
+          python3 scripts/check-site.py
+      - name: Ensure visible diagnostics require opt-in
+        run: |
+          set +e
+          dist/development/DuoLid.app/Contents/MacOS/DuoLid --presentation-check
+          result=$?
+          test "$result" -eq 64

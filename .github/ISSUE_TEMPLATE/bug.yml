@@ -1,0 +1,23 @@
+name: Bug report
+description: Report behavior that does not work as expected.
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Include what you expected and clear reproduction steps. Do not attach private screen content.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Mac and DuoLid version
+      description: Mac model, macOS version, app version/build, display refresh setting, and power mode. No serial number.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Technical diagnostics
+      description: Optional. Use Settings → Copy diagnostics and review before sharing. Do not attach raw system crash reports.
+      render: json

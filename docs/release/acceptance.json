@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "version": "0.9.0-beta.1",
+  "build": "90001",
+  "testedCommit": null,
+  "checks": {
+    "strictBuildsAndTests": false,
+    "pinkScreenIncidentResolved": false,
+    "syntheticPresentation60": false,
+    "syntheticPresentation120WhereSupported": false,
+    "livePresentation60": false,
+    "livePresentation120WhereSupported": false,
+    "visualQuality": false,
+    "openDesktopIdle": false,
+    "recovery": false,
+    "nativeAccessibility": false,
+    "preferencesAndAudio": false,
+    "installationAndUpdates": false
+  },
+  "evidence": [],
+  "blockers": [
+    "Pink-screen reports and WindowServer watchdog timeouts during development; cause and live recovery have not been confirmed.",
+    "New live presentation path is unverified. Visible diagnostics remain opt-in.",
+    "Notarization credentials and quarantined installation/update acceptance are pending."
+  ]
+}
