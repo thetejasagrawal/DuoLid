@@ -36,6 +36,8 @@ This checks the Keychain profile, builds both macOS 14 slices with strict Swift 
 
 Candidate files live under ignored `dist/candidates/VERSION-BUILD/`. Existing candidates are never silently overwritten. Inspect failed submissions with `xcrun notarytool log`; preserve failed artifacts and use a higher build for a fresh candidate. A timestamped Apple signature and stapled ticket are not byte-reproducible. The build inputs and metadata are explicit and pinned; checksums identify the exact distributed files.
 
+The candidate's local `Symbols/` folder retains matching dSYMs for both architectures. Release symbols keep source/line information for crash backtraces, omit transient Clang module-cache references, and map source paths to `/DuoLid`. UUIDs are checked against the packaged executable. Preserve these symbols with the candidate; they are not included in public downloads.
+
 The generated signed feed must be deployed byte-for-byte. Editing it invalidates the signature. These signatures do not expire with time. DuoLid sets `SUSignedFeedFailureExpirationInterval` to `0`, so an invalid feed remains rejected instead of entering Sparkle's default recovery mode after 20 days of validation failures. This enforces signed feeds throughout the update flow. Losing the signing key therefore requires a manually downloaded Developer ID signed, notarized replacement, unless a key transition was signed with the old key beforehand. See [Sparkle's security settings](https://sparkle-project.org/documentation/customization/). Keep the encrypted recovery backup outside Git.
 
 ## Acceptance and publication

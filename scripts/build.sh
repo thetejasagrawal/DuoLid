@@ -11,7 +11,13 @@ if $release; then
 fi
 swift package --force-resolved-versions resolve
 extra_flags=(-Xswiftc -warnings-as-errors)
-if $release; then extra_flags+=(-Xswiftc -DDUOLID_PACKAGED -Xswiftc -debug-prefix-map -Xswiftc "$PWD=/DuoLid"); fi
+if $release; then
+    # Retain source/line information for crash backtraces without referencing
+    # a developer's transient Clang module cache inside the release symbols.
+    extra_flags+=(-Xswiftc -DDUOLID_PACKAGED -Xswiftc -gline-tables-only
+        -Xswiftc -Xfrontend -Xswiftc -no-clang-module-breadcrumbs
+        -Xswiftc -debug-prefix-map -Xswiftc "$PWD=/DuoLid")
+fi
 for architecture in arm64 x86_64; do
     swift build -c "$configuration" --triple "$architecture-apple-macosx14.0" --disable-automatic-resolution "${extra_flags[@]}"
  done
@@ -60,5 +66,20 @@ mkdir -p "$output"
 # Replace only this script's own build output, never an installed application.
 if [ -d "$output/DuoLid.app" ]; then rm -rf "$output/DuoLid.app"; fi
 ditto "$app" "$output/DuoLid.app"
+if $release; then
+    for architecture in arm64 x86_64; do
+        ditto ".build/$architecture-apple-macosx/$configuration/DuoLid.dSYM" "$output/Symbols/$architecture/DuoLid.dSYM"
+    done
+    python3 - "$output" <<'PYTHON'
+import pathlib, re, subprocess, sys
+root = pathlib.Path(sys.argv[1])
+def identifiers(path):
+    return set(re.findall(r'UUID: ([A-F0-9-]+) \(([^)]+)\)', subprocess.check_output(['dwarfdump', '--uuid', str(path)], text=True)))
+expected = identifiers(root / 'DuoLid.app/Contents/MacOS/DuoLid')
+actual = set().union(*(identifiers(root / 'Symbols' / architecture / 'DuoLid.dSYM') for architecture in ('arm64', 'x86_64')))
+assert len(expected) == 2 and actual == expected, 'Release symbols do not match the shipped architecture UUIDs'
+print('Crash backtrace symbols retained and verified for both architectures.')
+PYTHON
+fi
 python3 scripts/provenance.py "$output/DuoLid.app" "$output/provenance.json"
 printf 'Built %s\n' "$output/DuoLid.app"

@@ -13,6 +13,7 @@ output="$PWD/dist/candidates/$version-$build"
 [ ! -e "$output" ] || { echo 'Candidate directory already exists. Preserve it; use a higher build number for a new candidate.' >&2; exit 1; }
 mkdir -p "$output/submissions" "$output/feed"
 cp dist/release/provenance.json "$output/provenance.json"
+ditto dist/release/Symbols "$output/Symbols"
 notarize() {
     local artifact="$1" label="$2"
     xcrun notarytool submit "$artifact" --keychain-profile "$profile" --wait --timeout 30m --output-format json > "$output/submissions/$label.json"
