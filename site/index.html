@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="A softer landing for your MacBook. DuoLid folds and blurs your desktop as you close the lid, with optional pastel glow and a magnetic opening sound. Open source for macOS.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <title>DuoLid · A softer landing for your MacBook</title>
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="navigation wrap">
+    <a class="wordmark" href="./" aria-label="DuoLid home"><img src="assets/icon.png" alt="" width="36" height="36">DuoLid</a>
+    <nav aria-label="Main navigation">
+      <a href="#experience">Experience</a><a href="#compatibility">Compatibility</a><a href="#setup">Setup</a>
+      <a class="source-link" href="https://github.com/thetejasagrawal/DuoLid">Source <span aria-hidden="true">↗</span></a>
+    </nav>
+  </header>
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <a class="eyebrow status-pill" href="https://github.com/thetejasagrawal/DuoLid/blob/main/docs/release/acceptance.json" id="release-status"><span class="status-dot" aria-hidden="true"></span>Beta in preparation</a>
+        <h1 id="hero-title">A softer landing.<br>For your MacBook.</h1>
+        <p class="intro">Your desktop gently folds away as you close the lid. A little blur. A soft spill of light. A satisfying click when you return.</p>
+        <div class="hero-actions">
+          <a class="button primary" id="download" href="https://github.com/thetejasagrawal/DuoLid">Explore the source <span aria-hidden="true">↗</span></a>
+          <a class="text-action" href="#experience">See the effect <span aria-hidden="true">↓</span></a>
+        </div>
+        <p class="requirements" id="release-detail">Planned v0.9.0-beta.1 · macOS 14+ · Apple silicon &amp; Intel</p>
+        <p class="release-note" id="release-note">The beta download will appear here after display safety and installation checks pass.</p>
+      </div>
+      <div class="hero-art"><img src="assets/icon.png" width="460" height="460" alt="DuoLid's laptop icon, with a folded desktop and a soft violet-to-peach glow"></div>
+    </section>
+
+    <section class="experience wrap" id="experience" aria-labelledby="experience-title">
+      <div class="section-heading"><div><p class="eyebrow">A familiar gesture. A nicer finish.</p><h2 id="experience-title">Made for the moment<br>between open and closed.</h2></div><button class="button quiet" id="play-demo" aria-controls="demo">Play the preview <span aria-hidden="true">▷</span></button></div>
+      <figure class="demo-figure">
+        <div class="display-shell"><video id="demo" width="1152" height="744" playsinline muted loop preload="none" poster="assets/fold.png" controls aria-label="Four-second demonstration of DuoLid closing and reopening a synthetic desktop"><source src="assets/duolid-demo.mp4" type="video/mp4">Your browser cannot play the demonstration. The poster shows the folded effect.</video></div>
+        <figcaption><span>Synthetic content through DuoLid’s actual renderer. Optional colorful glow is on.</span><span>4-second preview · sound off</span></figcaption>
+      </figure>
+      <div class="features">
+        <article><span class="feature-mark" aria-hidden="true">↓</span><h3>Softness, from the top.</h3><p>The blur travels down the display as the desktop folds toward its bottom edge. Open again and it returns with you.</p></article>
+        <article><span class="feature-mark glow-mark" aria-hidden="true">◌</span><h3>A little light, if you like.</h3><p>A soft halo blends the fold into black. Add pastel corner glow, choose a palette, and make it as subtle as you want.</p></article>
+        <article><span class="feature-mark" aria-hidden="true">⌁</span><h3>A small welcome back.</h3><p>An original magnetic click on opening. Choose a quieter tap or a crisper snap, set the volume, or leave sound off.</p></article>
+      </div>
+    </section>
+
+    <section class="tuning-band" id="customize" aria-labelledby="tuning-title"><div class="wrap tuning">
+      <div class="tuning-copy"><p class="eyebrow">Very much your Mac.</p><h2 id="tuning-title">Find your<br>just right.</h2><p>Keep the preview beside the controls. Set the start angle, turn up the softness, and see what a little more glow feels like.</p>
+        <dl class="tuning-list"><div><dt>62° to start</dt><dd>Use the default or choose an angle from 45° to 140°.</dd></div><div><dt>Three ways to soften</dt><dd>Duo’s fold, an even Frost, or a quieter touch.</dd></div><div><dt>A glow you control</dt><dd>Independent color, brightness, corners, spread, and edge bleed.</dd></div><div><dt>One gesture to pause</dt><dd>Use the menu bar, <kbd>⌃⌥⌘D</kbd>, or <kbd>Esc</kbd> during an effect.</dd></div></dl>
+      </div>
+      <figure class="workspace-figure"><img src="assets/workspace.png" alt="DuoLid's native workspace, with a sample desktop beside blur, start angle, colorful glow, and opening sound controls" width="1000" height="701" loading="lazy"><figcaption>Native controls. Changes save as you go.</figcaption></figure>
+    </div></section>
+
+    <section class="wrap compatibility" id="compatibility" aria-labelledby="compatibility-title">
+      <div class="section-heading"><div><p class="eyebrow">Before you download</p><h2 id="compatibility-title">A small app.<br>A few requirements.</h2></div><p class="section-aside">Lid sensors differ across MacBook models. DuoLid checks what your Mac actually supports.</p></div>
+      <div class="compatibility-grid"><div class="requirement"><span class="requirement-label">System target</span><strong>macOS 14 or later</strong><p>One universal build for Apple silicon and Intel.</p></div><div class="requirement"><span class="requirement-label">For automatic effects</span><strong>A compatible lid sensor</strong><p>Plus Metal and an active, non-mirrored built-in display.</p></div><div class="requirement"><span class="requirement-label">For the live desktop</span><strong>Screen Recording access</strong><p>The sample preview needs no screen permission.</p></div></div>
+      <p class="compatibility-note">Hardware validation is still in progress. Macs without a usable lid sensor get the sample preview. <a href="https://github.com/thetejasagrawal/DuoLid/blob/main/docs/COMPATIBILITY.md">Read the tested, unsupported, and unverified configurations <span aria-hidden="true">↗</span></a></p>
+    </section>
+
+    <section class="wrap setup" id="setup" aria-labelledby="setup-title">
+      <div><p class="eyebrow">When the beta is ready</p><h2 id="setup-title">Set it once.<br>Make yourself at home.</h2><p>DuoLid lives quietly in the menu bar. Open its window whenever you want to tune the details.</p></div>
+      <ol class="setup-steps"><li><span>01</span><div><h3>Move it into Applications.</h3><p>Open the release DMG and drag DuoLid to Applications.</p></div></li><li><span>02</span><div><h3>Let it see the display.</h3><p>Allow Screen Recording from DuoLid’s Settings. Quit and reopen if macOS asks.</p></div></li><li><span>03</span><div><h3>Try the sample, then your lid.</h3><p>Choose a starting angle and inspect the preview. Your glow and sound choices stay independent.</p></div></li></ol>
+    </section>
+
+    <section class="wrap privacy" id="privacy" aria-labelledby="privacy-title"><div class="privacy-symbol" aria-hidden="true">⌘</div><div><p class="eyebrow">Your screen is yours.</p><h2 id="privacy-title">The moment stays on your Mac.</h2><p>Screen frames are processed locally. They aren’t saved, uploaded, or included in diagnostics. No microphone capture, analytics, or account.</p><p class="small">Update checks and downloads contact GitHub when you request them or enable automatic checking. GitHub receives ordinary request metadata. Installation asks you; system profiling is off.</p></div></section>
+
+    <section class="wrap questions" aria-labelledby="questions-title"><div><p class="eyebrow">A few useful details</p><h2 id="questions-title">Good to know.</h2></div><div class="answers">
+      <details><summary>Is the beta available yet?</summary><p id="availability-answer">Not yet. We’re resolving a reported display interruption and finishing live rendering and installation checks. The first planned release is v0.9.0-beta.1. Follow the <a href="https://github.com/thetejasagrawal/DuoLid/blob/main/docs/release/acceptance.json">release acceptance record</a> for its actual status.</p></details>
+      <details><summary>Screen Recording is on, but access still isn’t working.</summary><p>Use Check access in DuoLid’s Settings, then quit and reopen if macOS requested it. Sensor, screen permission, capture, and graphics status are shown separately. A temporary capture failure shouldn’t be mistaken for a missing permission.</p></details>
+      <details><summary>Can I use it with an external display?</summary><p>The lid effect is intended for the MacBook’s active built-in display. External-only setups and mirrored built-in displays are excluded.</p></details>
+      <details><summary>Does it change sleep or lock my Mac?</summary><p>No. macOS keeps control of sleep and authentication. DuoLid is a visual effect, not a privacy lock. Protected video can appear blank in screen capture.</p></details>
+      <details><summary>What about HDR and Reduce Motion?</summary><p>The beta uses SDR/sRGB capture, so HDR highlights may look different during the effect. Respect Reduce Motion keeps the desktop flat when the system setting is enabled.</p></details>
+      <details><summary>Something looks wrong. How do I stop it?</summary><p>Press Esc during a visible effect, use Control–Option–Command–D, or pause DuoLid from the menu bar. Graphics failures pause the effect. For troubleshooting without drawing any effects, launch with <code>--settings-only</code>. <a href="https://github.com/thetejasagrawal/DuoLid/issues">Report an issue</a> with technical diagnostics, without private screen content.</p></details>
+    </div></section>
+  </main>
+  <footer class="wrap footer"><a class="wordmark" href="./"><img src="assets/icon.png" width="30" height="30" alt="">DuoLid</a><p>Made for a softer landing. Open source, under MIT.</p><nav aria-label="Footer"><a href="https://github.com/thetejasagrawal/DuoLid/blob/main/CHANGELOG.md" id="release-notes">Release notes</a><a href="https://github.com/thetejasagrawal/DuoLid">GitHub <span aria-hidden="true">↗</span></a></nav></footer>
+</body>
+</html>
