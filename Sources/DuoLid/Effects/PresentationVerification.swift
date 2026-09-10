@@ -63,7 +63,8 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
         let height = Int(screen.frame.height * screen.backingScaleFactor)
         frames = CapturedFrame(source: live ? .live : .synthetic)
         if !live { frames.set(try Self.syntheticBuffer(width: width, height: height)) }
-        renderer = try MetalRenderer(frames: frames, device: CGDirectDisplayCopyCurrentMetalDevice(displayID))
+        renderer = try MetalRenderer(
+            frames: frames, device: CGDirectDisplayCopyCurrentMetalDevice(displayID), recordsFrameTimings: true)
         renderer.backingScale = screen.backingScaleFactor
         let fullScreen = args.contains("--full-screen")
         let contentRect =
@@ -186,12 +187,14 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
                 let cancelled: Bool
                 let drained: Bool
                 let timing: PerformanceReport
+                let frameTimings: [RenderFrameTiming]
             }
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             if let data = try? encoder.encode(
                 RunReport(
-                    mode: live ? "live-capture" : "synthetic", cancelled: cancelled, drained: drained, timing: report))
+                    mode: live ? "live-capture" : "synthetic", cancelled: cancelled, drained: drained, timing: report,
+                    frameTimings: renderer.statistics.frameTimings()))
             {
                 FileHandle.standardOutput.write(data)
                 FileHandle.standardOutput.write(Data("\n".utf8))

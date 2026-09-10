@@ -31,6 +31,55 @@ final class ReleaseBehaviorTests: XCTestCase {
         XCTAssertFalse(report.passesCadence)
     }
 
+    func testFrameTimelineCorrelatesOutOfOrderCallbacks() {
+        var timeline = RenderFrameTimeline()
+        for id in UInt64(1)...2 {
+            timeline.submitted(
+                RenderFrameTiming(
+                    id: id, targetTime: 2, drawableRequestedAt: 1,
+                    encodingStartedAt: 1.01, submittedAt: 1.02))
+        }
+        timeline.presented(id: 2, at: 2.01)
+        timeline.completed(id: 1, start: 1.03, end: 1.04, success: true)
+        timeline.presented(id: 1, at: 2)
+        timeline.completed(id: 2, start: 1.05, end: 1.06, success: true)
+        XCTAssertEqual(timeline.frames.map(\.id), [1, 2])
+        XCTAssertEqual(timeline.frames.map(\.presentedAt), [2, 2.01])
+        XCTAssertEqual(timeline.frames.map(\.gpuEndedAt), [1.04, 1.06])
+        XCTAssertTrue(timeline.frames.allSatisfy { $0.gpuSucceeded == true })
+    }
+
+    func testFrameTimelineNeverRestoresEvictedOrUnknownFrames() {
+        var timeline = RenderFrameTimeline(capacity: 2)
+        for id in UInt64(1)...3 {
+            timeline.submitted(
+                RenderFrameTiming(
+                    id: id, targetTime: 2, drawableRequestedAt: 1,
+                    encodingStartedAt: 1.01, submittedAt: 1.02))
+        }
+        timeline.presented(id: 1, at: 2)
+        timeline.completed(id: 1, start: 1.03, end: 1.04, success: true)
+        timeline.presented(id: 99, at: 2)
+        XCTAssertEqual(timeline.frames.map(\.id), [2, 3])
+    }
+
+    func testFrameTimelineRetainsFailureWithoutInventingPresentation() throws {
+        var timeline = RenderFrameTimeline()
+        timeline.submitted(
+            RenderFrameTiming(
+                id: 1, targetTime: 2, drawableRequestedAt: 1,
+                encodingStartedAt: 1.01, submittedAt: 1.02))
+        timeline.completed(id: 1, start: 0, end: .nan, success: false)
+        timeline.presented(id: 1, at: .infinity)
+        timeline.presented(id: 1, at: 0)
+        let frame = try XCTUnwrap(timeline.frames.first)
+        XCTAssertEqual(frame.gpuSucceeded, false)
+        XCTAssertNil(frame.gpuStartedAt)
+        XCTAssertNil(frame.gpuEndedAt)
+        XCTAssertNil(frame.presentedAt)
+        XCTAssertNoThrow(try JSONEncoder().encode(timeline.frames))
+    }
+
     func testMissedDisplaySlotsFailTheReleaseGate() {
         let samples = (0..<1_800).filter { $0 % 20 != 0 }.map { 1 + Double($0) / 60 }
         let timing = PresentationTiming(timestamps: samples, targetFPS: 60)

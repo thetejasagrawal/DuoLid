@@ -12,8 +12,12 @@ enum RenderLog {
 /// All callback-produced counters are protected by one lock. Snapshots own copies.
 final class RenderStatistics: @unchecked Sendable {
     private let frames: CapturedFrame
-    init(frames: CapturedFrame) { self.frames = frames }
+    init(frames: CapturedFrame, recordsFrameTimings: Bool = false) {
+        self.frames = frames
+        timeline = recordsFrameTimings ? RenderFrameTimeline() : nil
+    }
     private let lock = NSLock()
+    private var timeline: RenderFrameTimeline?
     private var count = 0, skipped = 0
     private var gpuTime = 0.0, arrivalAge = 0.0, cpuTime = 0.0
     private var presentationLead = 0.0, queueWait = 0.0
@@ -22,13 +26,20 @@ final class RenderStatistics: @unchecked Sendable {
     private var pending: [UInt64: Double] = [:]
     private var firstSubmission: Double?
     private var lastPresentation: Double?
-    func submitted(id: UInt64, at time: Double) {
+    func submitted(_ frame: RenderFrameTiming) {
         lock.withLock {
-            pending[id] = time
-            if firstSubmission == nil { firstSubmission = time }
+            pending[frame.id] = frame.submittedAt
+            if firstSubmission == nil { firstSubmission = frame.submittedAt }
+            timeline?.submitted(frame)
         }
     }
-    func completed(id: UInt64) { _ = lock.withLock { pending.removeValue(forKey: id) } }
+    func completed(id: UInt64, start: Double, end: Double, success: Bool) {
+        lock.withLock {
+            pending.removeValue(forKey: id)
+            timeline?.completed(id: id, start: start, end: end, success: success)
+        }
+    }
+    func frameTimings() -> [RenderFrameTiming] { lock.withLock { timeline?.frames ?? [] } }
     func isStalled(at time: Double) -> Bool {
         lock.withLock {
             if let oldest = pending.values.min(), time - oldest > 0.75 { return true }
@@ -37,12 +48,13 @@ final class RenderStatistics: @unchecked Sendable {
         }
     }
 
-    func presented(at time: Double) {
+    func presented(id: UInt64, at time: Double) {
         guard time.isFinite, time > 0 else { return }
         lock.withLock {
             lastPresentation = max(lastPresentation ?? 0, time)
             if timestamps.count < 8_192 { timestamps.append(time) } else { timestamps[writeIndex % 8_192] = time }
             writeIndex += 1
+            timeline?.presented(id: id, at: time)
         }
     }
     func skip() { lock.withLock { skipped += 1 } }
@@ -245,7 +257,10 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         if let device { _ = try? EffectGPU.get(device: device) }
     }
 
-    init(frames: CapturedFrame, device: MTLDevice? = MTLCreateSystemDefaultDevice(), liveAngle: LatestLidSample? = nil)
+    init(
+        frames: CapturedFrame, device: MTLDevice? = MTLCreateSystemDefaultDevice(),
+        liveAngle: LatestLidSample? = nil, recordsFrameTimings: Bool = false
+    )
         throws
     {
         guard let device else { throw RenderError.unavailable }
@@ -254,7 +269,7 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         self.device = device
         commandQueue = queue
         self.frames = frames
-        statistics = RenderStatistics(frames: frames)
+        statistics = RenderStatistics(frames: frames, recordsFrameTimings: recordsFrameTimings)
         self.liveAngle = liveAngle
         compositePipeline = gpu.composite
         downsample = MPSImageBilinearScale(device: device)
@@ -278,14 +293,15 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
             statistics.skip()
             return
         }
+        let requestedAt = CACurrentMediaTime()
         guard let drawable = layer.nextDrawable() else {
             inFlight.signal()
             return
         }
-        draw(drawable: drawable, at: presentationTime)
+        draw(drawable: drawable, at: presentationTime, requestedAt: requestedAt)
     }
 
-    private func draw(drawable: CAMetalDrawable, at presentationTime: CFTimeInterval) {
+    private func draw(drawable: CAMetalDrawable, at presentationTime: CFTimeInterval, requestedAt: CFTimeInterval) {
         let began = CACurrentMediaTime()
         var committed = false
         defer { if !committed { inFlight.signal() } }
@@ -312,22 +328,26 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         guard encodeEffect(command: command, source: source, target: drawable.texture, state: snapshot) else { return }
         let semaphore = inFlight
         let statistics = statistics
-        drawable.addPresentedHandler { drawable in statistics.presented(at: drawable.presentedTime) }
+        submissionID &+= 1
+        let id = submissionID
+        drawable.addPresentedHandler { drawable in statistics.presented(id: id, at: drawable.presentedTime) }
         let frameAge = max(0, ProcessInfo.processInfo.systemUptime - receivedAt)
         let submitted = CACurrentMediaTime()
         let input = FrameLease(texture: retainedTexture, buffer: pixelBuffer)
         let failure = onFailure
         let firstFrame = scheduledFirstPresentation ? nil : FirstFrameSignal(action: onPresent)
         scheduledFirstPresentation = true
-        submissionID &+= 1
-        let id = submissionID
-        statistics.submitted(id: id, at: submitted)
+        statistics.submitted(
+            RenderFrameTiming(
+                id: id, targetTime: presentationTime, drawableRequestedAt: requestedAt,
+                encodingStartedAt: began, submittedAt: submitted))
         command.addCompletedHandler { command in
             // Keep the IOSurface-backed input alive until the GPU has finished reading it.
             withExtendedLifetime(input) {}
             semaphore.signal()
-            statistics.completed(id: id)
-            firstFrame?.completed(success: command.status == .completed && command.error == nil)
+            let success = command.status == .completed && command.error == nil
+            statistics.completed(id: id, start: command.gpuStartTime, end: command.gpuEndTime, success: success)
+            firstFrame?.completed(success: success)
             statistics.record(
                 gpu: command.gpuEndTime - command.gpuStartTime, age: frameAge,
                 cpu: submitted - began, lead: presentationTime - submitted,
@@ -343,7 +363,14 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         // Present only once Metal has scheduled the writes to this drawable.
         // Calling drawable.present() immediately after commit can race scheduling
         // and expose an unwritten surface.
-        command.present(drawable)
+        // Animation and presentation share the display link's target. Presenting
+        // early can alternate short and long intervals on a ProMotion display,
+        // even when the average frame rate and GPU execution time look healthy.
+        if presentationTime.isFinite, presentationTime > submitted {
+            command.present(drawable, atTime: presentationTime)
+        } else {
+            command.present(drawable)
+        }
         command.commit()
         committed = true
     }
