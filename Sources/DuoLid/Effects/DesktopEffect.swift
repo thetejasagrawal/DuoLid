@@ -305,6 +305,12 @@ final class DesktopEffect {
         fail(error.localizedDescription)
     }
 
+    func reportGraphicsFailure(_ message: String) {
+        defaults.set(true, forKey: "DuoLid.renderSessionInterrupted")
+        onGraphicsFailure?()
+        fail(message)
+    }
+
     private func fail(_ message: String) {
         failureLatched = true
         lastFailure = ProcessInfo.processInfo.systemUptime

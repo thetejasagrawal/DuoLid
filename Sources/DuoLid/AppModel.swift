@@ -61,6 +61,7 @@ final class AppModel: ObservableObject {
         effect = DesktopEffect(liveAngle: sensor.samples, defaults: defaults, settingsOnly: self.settingsOnly)
         self.defaults = defaults
         needsRecovery = effect.failureLatched
+        graphicsFailed = effect.failureLatched
         var loaded = DuoSettings.load(from: defaults.data(forKey: "DuoLid.settings.v1"))
         if documentationPreview != nil {
             loaded = DuoSettings()
@@ -77,6 +78,7 @@ final class AppModel: ObservableObject {
     var displayAngle: Double { followLid ? (angle ?? previewAngle) : previewAngle }
     var previewProgress: Double { LidMath.progress(angle: displayAngle, clearAngle: settings.clearAngle) }
     var sensorConnected: Bool { sensorState == .connected }
+    var previewRenderingAllowed: Bool { !settingsOnly && !graphicsFailed }
     var ready: Bool {
         !settingsOnly && DesktopEffect.builtInScreen != nil && !effect.failureLatched && sensorConnected
             && hasScreenAccess && settings.enabled
@@ -376,8 +378,13 @@ final class AppModel: ObservableObject {
         statusDidChange?()
     }
 
+    func previewFailed(_ message: String) {
+        effect.reportGraphicsFailure(message)
+        stopPreview()
+    }
+
     func playPreview(onDesktop: Bool = false) {
-        guard !settingsOnly else {
+        guard previewRenderingAllowed else {
             message = "Previews are unavailable while graphics are stopped."
             return
         }

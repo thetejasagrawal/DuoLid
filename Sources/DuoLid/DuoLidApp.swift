@@ -211,7 +211,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(checkUpdates) { return model.updater.canCheck }
         if menuItem.action == #selector(previewDesktop) || menuItem.action == #selector(previewEffect) {
-            return !model.settingsOnly
+            return model.previewRenderingAllowed
         }
         return true
     }

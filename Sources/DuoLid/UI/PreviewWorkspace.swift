@@ -21,16 +21,20 @@ struct PreviewWorkspace: View {
                 ZStack {
                     if let preview = model.documentationPreview {
                         Image(nsImage: preview).resizable().aspectRatio(contentMode: .fit)
-                    } else if model.settingsOnly {
+                    } else if !model.previewRenderingAllowed {
                         PreviewDesktop()
                             .overlay(alignment: .top) {
-                                Text("Graphics are stopped in settings-only mode").font(.caption).padding(10)
+                                Text("Graphics are paused. Open Settings to review.").font(.caption).padding(10)
                                     .background(.regularMaterial).padding(12)
                             }
                     } else {
                         EffectPreview(
                             angle: model.displayAngle, settings: model.settings,
-                            reduceMotion: reduceMotion, onFailure: { renderingError = $0 },
+                            reduceMotion: reduceMotion,
+                            onFailure: {
+                                renderingError = $0
+                                model.previewFailed($0)
+                            },
                             registerCleanup: { model.stopPreviewRendering = $0 })
                     }
                     if let renderingError {
@@ -84,9 +88,9 @@ struct PreviewWorkspace: View {
                     ).toggleStyle(.checkbox).disabled(!model.sensorConnected || model.previewPlaying)
                 }.controlSize(.small).font(.system(size: 11))
             }
-            .disabled(model.settingsOnly)
+            .disabled(!model.previewRenderingAllowed)
             .help(
-                model.settingsOnly
+                !model.previewRenderingAllowed
                     ? "Preview controls are unavailable while graphics are stopped."
                     : "Inspect the effect at any lid angle.")
             Spacer(minLength: 22)
@@ -98,7 +102,7 @@ struct PreviewWorkspace: View {
                     Label(
                         model.previewPlaying && !model.desktopPreview ? "Stop animation" : "Animate preview",
                         systemImage: model.previewPlaying && !model.desktopPreview ? "stop.fill" : "play.fill")
-                }.disabled(model.settingsOnly || model.desktopPreview).help("Animate this preview (⌥⌘P)")
+                }.disabled(!model.previewRenderingAllowed || model.desktopPreview).help("Animate this preview (⌥⌘P)")
                 Spacer(minLength: 0)
                 Button {
                     model.playPreview(onDesktop: true)
@@ -107,13 +111,14 @@ struct PreviewWorkspace: View {
                         model.desktopPreview ? "Stop test" : "Test on desktop",
                         systemImage: model.desktopPreview ? "stop.fill" : "display")
                 }.disabled(
-                    model.settingsOnly || (model.previewPlaying && !model.desktopPreview) || !model.settings.enabled
+                    !model.previewRenderingAllowed || (model.previewPlaying && !model.desktopPreview)
+                        || !model.settings.enabled
                         || !model.settings.blurEnabled
                 )
                 .help("Test on your real desktop (⌘P)")
             }.controlSize(.large)
             Text(
-                model.settingsOnly
+                !model.previewRenderingAllowed
                     ? "Graphics are stopped. This sample stays still while you adjust settings."
                     : model.desktopPreview
                         ? "Press Esc to pause the desktop effect at any time."
@@ -124,6 +129,9 @@ struct PreviewWorkspace: View {
             .font(.system(size: 11)).foregroundStyle(.secondary).padding(.top, 10)
             .frame(height: 30, alignment: .topLeading)
         }.padding(28)
+            .onChange(of: model.graphicsFailed) { _, failed in
+                if !failed { renderingError = nil }
+            }
     }
 
     private func inspect(angle: Double) {
@@ -153,7 +161,9 @@ private struct EffectPreview: NSViewRepresentable {
 }
 
 private final class PreviewSurface: NSView {
+    @MainActor private static var quarantinedSurface: PreviewSurface?
     private var renderer: MetalRenderer?
+    private var onFailure: (@MainActor @Sendable (String) -> Void)?
     private let renderQueue = DispatchQueue(label: "app.duolid.preview", qos: .userInteractive)
     private var pendingDraw: DispatchWorkItem?
     private var isStopping = false
@@ -166,6 +176,11 @@ private final class PreviewSurface: NSView {
     override func makeBackingLayer() -> CALayer { CAMetalLayer() }
 
     @MainActor func prepare(onFailure: @escaping @MainActor @Sendable (String) -> Void) {
+        self.onFailure = onFailure
+        guard Self.quarantinedSurface == nil else {
+            DispatchQueue.main.async { onFailure("Restart DuoLid before trying graphics again.") }
+            return
+        }
         wantsLayer = true
         do {
             let frames = CapturedFrame()
@@ -268,14 +283,18 @@ private final class PreviewSurface: NSView {
         pendingDraw = nil
         let renderer = renderer
         let queue = renderQueue
-        let task = Task { @MainActor [weak self] in
-            await withCheckedContinuation { continuation in
+        let task = Task { @MainActor [self] in
+            let drained = await withCheckedContinuation { continuation in
                 queue.async {
-                    _ = renderer?.finishRendering()
-                    continuation.resume()
+                    continuation.resume(returning: renderer?.finishRendering() ?? true)
                 }
             }
-            self?.renderer = nil
+            if drained {
+                self.renderer = nil
+            } else {
+                Self.quarantinedSurface = self
+                onFailure?("Preview graphics did not finish safely. Restart DuoLid before trying again.")
+            }
         }
         stopTask = task
         await task.value
