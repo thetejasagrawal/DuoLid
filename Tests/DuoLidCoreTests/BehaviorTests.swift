@@ -1,5 +1,6 @@
-import XCTest
 import AVFoundation
+import XCTest
+
 @testable import DuoLidCore
 
 final class BehaviorTests: XCTestCase {
@@ -134,8 +135,10 @@ final class BehaviorTests: XCTestCase {
     }
 
     func testSmoothingIsFrameRateIndependent() {
-        var low = AngleSmoother(), high = AngleSmoother()
-        _ = low.update(100, at: 0); _ = high.update(100, at: 0)
+        var low = AngleSmoother()
+        var high = AngleSmoother()
+        _ = low.update(100, at: 0)
+        _ = high.update(100, at: 0)
         for frame in 1...30 { _ = low.update(40, at: Double(frame) / 30) }
         for frame in 1...120 { _ = high.update(40, at: Double(frame) / 120) }
         XCTAssertEqual(low.value!, high.value!, accuracy: 0.02)
@@ -177,8 +180,11 @@ final class BehaviorTests: XCTestCase {
 
     func testPreferencesClampUnsafeOrInvalidValues() {
         var settings = DuoSettings()
-        settings.clearAngle = 0; settings.volume = 9; settings.intensity = .nan
-        settings.glowSpread = -1; settings.glowIntensity = .infinity
+        settings.clearAngle = 0
+        settings.volume = 9
+        settings.intensity = .nan
+        settings.glowSpread = -1
+        settings.glowIntensity = .infinity
         settings.edgeBleed = .nan
         settings.normalize()
         XCTAssertEqual(settings.clearAngle, 45)

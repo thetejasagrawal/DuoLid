@@ -1,5 +1,5 @@
-import Foundation
 import DuoLidCore
+import Foundation
 
 final class FirstFrameSignal: @unchecked Sendable {
     private let lock = NSLock()
@@ -12,5 +12,8 @@ final class FirstFrameSignal: @unchecked Sendable {
     func presented(at time: Double) {
         if lock.withLock({ readiness.didPresent(at: time) }) { notify() }
     }
-    private func notify() { let action = action; Task { @MainActor in action?() } }
+    private func notify() {
+        let action = action
+        Task { @MainActor in action?() }
+    }
 }

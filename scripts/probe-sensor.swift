@@ -14,7 +14,8 @@ while service != 0 {
     service = IOIteratorNext(iterator)
     defer { IOObjectRelease(current) }
     func number(_ key: String) -> Int? {
-        (IORegistryEntryCreateCFProperty(current, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? NSNumber)?.intValue
+        (IORegistryEntryCreateCFProperty(current, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
+            as? NSNumber)?.intValue
     }
     guard number("PrimaryUsagePage") == 32, number("PrimaryUsage") == 138 else { continue }
     guard let device = IOHIDDeviceCreate(kCFAllocatorDefault, current) else { continue }
@@ -29,12 +30,14 @@ while service != 0 {
         let result = IOHIDDeviceGetReport(device, kind, 1, &data, &length)
         print("Report \(kind.rawValue): result=\(result), bytes=\(Array(data.prefix(length)))")
     }
-    IOHIDDeviceRegisterInputValueCallback(device, { _, result, _, value in
-        let element = IOHIDValueGetElement(value)
-        if IOHIDElementGetUsage(element) == 0x047f {
-            print("Input callback: result=\(result), angle=\(IOHIDValueGetIntegerValue(value))")
-        }
-    }, nil)
+    IOHIDDeviceRegisterInputValueCallback(
+        device,
+        { _, result, _, value in
+            let element = IOHIDValueGetElement(value)
+            if IOHIDElementGetUsage(element) == 0x047f {
+                print("Input callback: result=\(result), angle=\(IOHIDValueGetIntegerValue(value))")
+            }
+        }, nil)
     IOHIDDeviceScheduleWithRunLoop(device, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
     CFRunLoopRunInMode(.defaultMode, 2, false)
     IOHIDDeviceUnscheduleFromRunLoop(device, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)

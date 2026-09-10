@@ -1,7 +1,7 @@
 import AppKit
 import Combine
-import Sparkle
 import DuoLidCore
+import Sparkle
 
 @MainActor
 final class UpdaterController: NSObject, ObservableObject, SPUUpdaterDelegate {
@@ -21,7 +21,8 @@ final class UpdaterController: NSObject, ObservableObject, SPUUpdaterDelegate {
     private let defaults: UserDefaults
     private var started = false
     private var observations: [NSKeyValueObservation] = []
-    private lazy var native = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: self, userDriverDelegate: nil)
+    private lazy var native = SPUStandardUpdaterController(
+        startingUpdater: false, updaterDelegate: self, userDriverDelegate: nil)
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -34,11 +35,12 @@ final class UpdaterController: NSObject, ObservableObject, SPUUpdaterDelegate {
     func start() {
         guard !started else { return }
         guard Bundle.main.bundleIdentifier == "app.duolid.DuoLid",
-              Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String == UpdatePolicy.feedURL,
-              UpdatePolicy.validPublicKey(Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String),
-              Bundle.main.object(forInfoDictionaryKey: "SURequireSignedFeed") as? Bool == true,
-              Bundle.main.object(forInfoDictionaryKey: "SUSignedFeedFailureExpirationInterval") as? Int == 0,
-              Bundle.main.object(forInfoDictionaryKey: "SUVerifyUpdateBeforeExtraction") as? Bool == true else {
+            Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String == UpdatePolicy.feedURL,
+            UpdatePolicy.validPublicKey(Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String),
+            Bundle.main.object(forInfoDictionaryKey: "SURequireSignedFeed") as? Bool == true,
+            Bundle.main.object(forInfoDictionaryKey: "SUSignedFeedFailureExpirationInterval") as? Int == 0,
+            Bundle.main.object(forInfoDictionaryKey: "SUVerifyUpdateBeforeExtraction") as? Bool == true
+        else {
             configurationError = "Updates are available in signed release builds."
             return
         }
@@ -54,7 +56,7 @@ final class UpdaterController: NSObject, ObservableObject, SPUUpdaterDelegate {
                 native.updater.observe(\.automaticallyChecksForUpdates, options: [.new]) { [weak self] _, change in
                     let value = change.newValue ?? false
                     Task { @MainActor in self?.automaticallyChecks = value }
-                }
+                },
             ]
         } catch { configurationError = error.localizedDescription }
     }
@@ -70,8 +72,10 @@ final class UpdaterController: NSObject, ObservableObject, SPUUpdaterDelegate {
 
     func allowedChannels(for updater: SPUUpdater) -> Set<String> { includesBetas ? ["beta"] : [] }
 
-    func updater(_ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem,
-                 untilInvokingBlock installHandler: @escaping () -> Void) -> Bool {
+    func updater(
+        _ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem,
+        untilInvokingBlock installHandler: @escaping () -> Void
+    ) -> Bool {
         let continuation = InstallationContinuation(installHandler)
         Task {
             await prepareForInstallation?()

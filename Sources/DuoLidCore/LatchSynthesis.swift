@@ -40,10 +40,18 @@ public enum LatchSynthesis {
             withUnsafeBytes(of: &little) { data.append(contentsOf: $0) }
         }
         let byteCount = UInt32(pcm.count * 2)
-        appendText("RIFF"); append32(36 + byteCount); appendText("WAVEfmt ")
-        append32(16); append16(1); append16(1); append32(UInt32(sampleRate))
-        append32(UInt32(sampleRate * 2)); append16(2); append16(16)
-        appendText("data"); append32(byteCount)
+        appendText("RIFF")
+        append32(36 + byteCount)
+        appendText("WAVEfmt ")
+        append32(16)
+        append16(1)
+        append16(1)
+        append32(UInt32(sampleRate))
+        append32(UInt32(sampleRate * 2))
+        append16(2)
+        append16(16)
+        appendText("data")
+        append32(byteCount)
         for sample in pcm { append16(UInt16(bitPattern: Int16(sample * 32_767))) }
         return data
     }

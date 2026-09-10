@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import DuoLidCore
 
 final class ReleaseBehaviorTests: XCTestCase {
@@ -14,7 +15,8 @@ final class ReleaseBehaviorTests: XCTestCase {
 
     func testPresentationOrderAndDuplicatesDoNotCorruptCadence() {
         let samples = (0..<1_801).map { 1 + Double($0) / 60 }
-        let timing = PresentationTiming(timestamps: samples.reversed() + [samples[99], .nan, .infinity, 0], targetFPS: 60)
+        let timing = PresentationTiming(
+            timestamps: samples.reversed() + [samples[99], .nan, .infinity, 0], targetFPS: 60)
         XCTAssertTrue(timing.passes(targetFPS: 60))
         XCTAssertEqual(timing.framesPerSecond, 60, accuracy: 0.001)
         XCTAssertEqual(timing.missedDeadlineRatio, 0)
@@ -23,7 +25,8 @@ final class ReleaseBehaviorTests: XCTestCase {
     func testEmptyPresentationAndGPUOnlyWorkNeverPass() {
         let timing = PresentationTiming(timestamps: [], targetFPS: 120)
         XCTAssertFalse(timing.passes(targetFPS: 120))
-        let report = PerformanceReport(targetFPS: 120, completedFrames: 3_600, skippedSubmissions: 0,
+        let report = PerformanceReport(
+            targetFPS: 120, completedFrames: 3_600, skippedSubmissions: 0,
             gpuMS: 3, cpuMS: 1, gpuQueueMS: 0, captureArrivalAgeMS: 2, presentationLeadMS: 5, presentation: timing)
         XCTAssertFalse(report.passesCadence)
     }
@@ -65,7 +68,8 @@ final class ReleaseBehaviorTests: XCTestCase {
 
     func testLegacyCadenceMigrationPreservesIndividuallyDisabledEffects() throws {
         for (legacy, expected) in [(60, FrameRateMode.sixty), (120, .oneTwenty), (999, .automatic)] {
-            let json = "{\"frameRate\":\(legacy),\"soundEnabled\":false,\"glowEnabled\":false,\"clearAngle\":75,\"edgeBleed\":0.87}"
+            let json =
+                "{\"frameRate\":\(legacy),\"soundEnabled\":false,\"glowEnabled\":false,\"clearAngle\":75,\"edgeBleed\":0.87}"
             let settings = DuoSettings.load(from: Data(json.utf8))
             XCTAssertEqual(settings.frameRateMode, expected)
             XCTAssertFalse(settings.soundEnabled)
@@ -79,7 +83,10 @@ final class ReleaseBehaviorTests: XCTestCase {
     }
 
     func testMalformedPreferenceOnlyRecoversItsOwnField() {
-        let settings = DuoSettings.load(from: Data("{\"style\":\"future-style\",\"frameRateMode\":\"future-mode\",\"intensity\":\"bad\",\"soundEnabled\":false,\"glowEnabled\":false,\"clearAngle\":79}".utf8))
+        let settings = DuoSettings.load(
+            from: Data(
+                "{\"style\":\"future-style\",\"frameRateMode\":\"future-mode\",\"intensity\":\"bad\",\"soundEnabled\":false,\"glowEnabled\":false,\"clearAngle\":79}"
+                    .utf8))
         XCTAssertEqual(settings.style, .duo)
         XCTAssertEqual(settings.frameRateMode, .automatic)
         XCTAssertEqual(settings.clearAngle, 79)
@@ -111,14 +118,17 @@ final class ReleaseBehaviorTests: XCTestCase {
 
     func testDisplayWakeDoesNotResumeALockedOrSleepingSession() {
         var state = InterruptionState()
-        state.begin(.sleeping); state.begin(.inactiveSession); state.begin(.displaySleeping)
+        state.begin(.sleeping)
+        state.begin(.inactiveSession)
+        state.begin(.displaySleeping)
         state.end(.displaySleeping)
         XCTAssertTrue(state.isSuspended)
         state.end(.sleeping)
         XCTAssertTrue(state.isSuspended)
         state.end(.inactiveSession)
         XCTAssertFalse(state.isSuspended)
-        state.begin(.shutdown); state.end(.sleeping)
+        state.begin(.shutdown)
+        state.end(.sleeping)
         XCTAssertTrue(state.isSuspended)
     }
 }

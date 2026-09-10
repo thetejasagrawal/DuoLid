@@ -8,9 +8,11 @@ public struct CaptureTiming: Codable, Sendable {
     public let p95IntervalMS: Double
     public let latestFrameAgeMS: Double
     public init(source: Source, receivedFrames: Int, timestamps: [Double], now: Double) {
-        self.source = source; self.receivedFrames = receivedFrames
+        self.source = source
+        self.receivedFrames = receivedFrames
         let timing = PresentationTiming(timestamps: timestamps, targetFPS: 120, warmup: 0)
-        arrivalFPS = timing.framesPerSecond; p95IntervalMS = timing.p95IntervalMS
+        arrivalFPS = timing.framesPerSecond
+        p95IntervalMS = timing.p95IntervalMS
         latestFrameAgeMS = max(0, now - (timestamps.max() ?? now)) * 1_000
     }
 }
@@ -41,8 +43,8 @@ public struct PresentationTiming: Codable, Sendable {
     }
 
     public func passes(targetFPS: Double) -> Bool {
-        frames >= 15 && framesPerSecond >= targetFPS * 0.98 &&
-        missedDeadlineRatio < 0.01 && p95IntervalMS <= 1_250 / max(1, targetFPS)
+        frames >= 15 && framesPerSecond >= targetFPS * 0.98 && missedDeadlineRatio < 0.01
+            && p95IntervalMS <= 1_250 / max(1, targetFPS)
     }
 }
 
@@ -60,15 +62,22 @@ public struct PerformanceReport: Codable, Sendable {
     public let capture: CaptureTiming?
     public var passesCadence: Bool { presentation.passes(targetFPS: targetFPS) }
 
-    public init(targetFPS: Double, completedFrames: Int, skippedSubmissions: Int,
-                gpuMS: Double, cpuMS: Double, gpuQueueMS: Double,
-                captureArrivalAgeMS: Double, presentationLeadMS: Double,
-                presentation: PresentationTiming, capture: CaptureTiming? = nil) {
+    public init(
+        targetFPS: Double, completedFrames: Int, skippedSubmissions: Int,
+        gpuMS: Double, cpuMS: Double, gpuQueueMS: Double,
+        captureArrivalAgeMS: Double, presentationLeadMS: Double,
+        presentation: PresentationTiming, capture: CaptureTiming? = nil
+    ) {
         schemaVersion = 1
-        self.targetFPS = targetFPS; self.completedFrames = completedFrames
-        self.skippedSubmissions = skippedSubmissions; self.gpuMS = gpuMS; self.cpuMS = cpuMS
-        self.gpuQueueMS = gpuQueueMS; self.captureArrivalAgeMS = captureArrivalAgeMS
-        self.presentationLeadMS = presentationLeadMS; self.presentation = presentation
+        self.targetFPS = targetFPS
+        self.completedFrames = completedFrames
+        self.skippedSubmissions = skippedSubmissions
+        self.gpuMS = gpuMS
+        self.cpuMS = cpuMS
+        self.gpuQueueMS = gpuQueueMS
+        self.captureArrivalAgeMS = captureArrivalAgeMS
+        self.presentationLeadMS = presentationLeadMS
+        self.presentation = presentation
         self.capture = capture
     }
 }

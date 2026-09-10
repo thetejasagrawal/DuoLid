@@ -1,6 +1,6 @@
 import AppKit
-import Foundation
 import DuoLidCore
+import Foundation
 import QuartzCore
 
 /// Owns its display link and renderer on one dedicated run loop. Cross-thread
@@ -24,10 +24,15 @@ final class DisplayRenderLoop: NSObject, @unchecked Sendable {
     private var lastCadenceCheck = 0.0
 
     @MainActor
-    init(renderer: MetalRenderer, layer: CAMetalLayer, screen: NSScreen, fps: Int,
-         automatic: Bool = false, onCadenceChange: (@MainActor @Sendable (Int) -> Void)? = nil) {
-        self.renderer = renderer; self.layer = layer; self.fps = Float(fps)
-        self.automatic = automatic; self.onCadenceChange = onCadenceChange
+    init(
+        renderer: MetalRenderer, layer: CAMetalLayer, screen: NSScreen, fps: Int,
+        automatic: Bool = false, onCadenceChange: (@MainActor @Sendable (Int) -> Void)? = nil
+    ) {
+        self.renderer = renderer
+        self.layer = layer
+        self.fps = Float(fps)
+        self.automatic = automatic
+        self.onCadenceChange = onCadenceChange
         adaptive = AdaptiveCadence(framesPerSecond: fps)
         super.init()
         // AppKit binds this clock to the intended screen. Unlike a Metal display
@@ -36,7 +41,13 @@ final class DisplayRenderLoop: NSObject, @unchecked Sendable {
     }
 
     func start() {
-        guard lock.withLock({ if started || stopped { return false }; started = true; return true }) else { return }
+        guard
+            lock.withLock({
+                if started || stopped { return false }
+                started = true
+                return true
+            })
+        else { return }
         let thread = Thread { [self] in
             autoreleasepool {
                 let loop = CFRunLoopGetCurrent()!
@@ -46,11 +57,15 @@ final class DisplayRenderLoop: NSObject, @unchecked Sendable {
                     return true
                 }
                 defer {
-                    self.link?.invalidate(); self.link = nil
+                    self.link?.invalidate()
+                    self.link = nil
                     let didDrain = renderer.finishRendering()
                     let pending = lock.withLock {
-                        finished = true; drained = didDrain; runLoop = nil
-                        let pending = completions; completions.removeAll()
+                        finished = true
+                        drained = didDrain
+                        runLoop = nil
+                        let pending = completions
+                        completions.removeAll()
                         return pending
                     }
                     pending.forEach { $0.resume(returning: didDrain) }
@@ -77,7 +92,11 @@ final class DisplayRenderLoop: NSObject, @unchecked Sendable {
     }
 
     func setFrameRate(_ rate: Int, automatic: Bool) {
-        let loop = lock.withLock { fps = Float(rate); self.automatic = automatic; return runLoop }
+        let loop = lock.withLock {
+            fps = Float(rate)
+            self.automatic = automatic
+            return runLoop
+        }
         if let loop {
             CFRunLoopPerformBlock(loop, CFRunLoopMode.defaultMode.rawValue) { [self] in applyCadence() }
             CFRunLoopWakeUp(loop)
@@ -94,7 +113,11 @@ final class DisplayRenderLoop: NSObject, @unchecked Sendable {
     func stop() {
         let loop = lock.withLock { () -> CFRunLoop? in
             stopped = true
-            if !started { link?.invalidate(); link = nil; finished = true }
+            if !started {
+                link?.invalidate()
+                link = nil
+                finished = true
+            }
             return runLoop
         }
         if let loop {
@@ -123,11 +146,14 @@ final class DisplayRenderLoop: NSObject, @unchecked Sendable {
             let now = CACurrentMediaTime()
             if now - lastCadenceCheck >= 0.25 {
                 lastCadenceCheck = now
-                if let rate = adaptive.evaluate(timestamps: renderer.statistics.recentTimestamps(since: now - 1),
-                                                now: now, automatic: lock.withLock { automatic }) {
+                if let rate = adaptive.evaluate(
+                    timestamps: renderer.statistics.recentTimestamps(since: now - 1),
+                    now: now, automatic: lock.withLock { automatic })
+                {
                     lock.withLock { fps = Float(rate) }
                     renderer.targetFPS = Double(rate)
-                    link.preferredFrameRateRange = CAFrameRateRange(minimum: Float(rate), maximum: Float(rate), preferred: Float(rate))
+                    link.preferredFrameRateRange = CAFrameRateRange(
+                        minimum: Float(rate), maximum: Float(rate), preferred: Float(rate))
                     let notify = onCadenceChange
                     Task { @MainActor in notify?(rate) }
                 }

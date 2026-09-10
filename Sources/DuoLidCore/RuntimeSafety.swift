@@ -19,7 +19,8 @@ public struct FirstFrameReadiness: Sendable {
     private var notified = false
     public init() {}
     public mutating func gpuCompleted(success: Bool) -> Bool {
-        completed = success; failed = failed || !success
+        completed = success
+        failed = failed || !success
         return takeReady()
     }
     public mutating func didPresent(at time: Double) -> Bool {

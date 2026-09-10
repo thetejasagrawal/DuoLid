@@ -18,10 +18,10 @@ let package = Package(
                 .linkedFramework("AppKit"), .linkedFramework("IOKit"),
                 .linkedFramework("ScreenCaptureKit"), .linkedFramework("MetalKit"),
                 .linkedFramework("MetalPerformanceShaders"),
-                .linkedFramework("AVFoundation"), .linkedFramework("ServiceManagement")
+                .linkedFramework("AVFoundation"), .linkedFramework("ServiceManagement"),
             ]
         ),
-        .testTarget(name: "DuoLidCoreTests", dependencies: ["DuoLidCore"])
+        .testTarget(name: "DuoLidCoreTests", dependencies: ["DuoLidCore"]),
     ],
     swiftLanguageModes: [.v6]
 )

@@ -1,7 +1,7 @@
 import AppKit
-import SwiftUI
-import MetalKit
 import DuoLidCore
+import MetalKit
+import SwiftUI
 
 struct PreviewWorkspace: View {
     @ObservedObject var model: AppModel
@@ -23,11 +23,15 @@ struct PreviewWorkspace: View {
                         Image(nsImage: preview).resizable().aspectRatio(contentMode: .fit)
                     } else if model.settingsOnly {
                         PreviewDesktop()
-                            .overlay(alignment: .top) { Text("Graphics are stopped in settings-only mode").font(.caption).padding(10).background(.regularMaterial).padding(12) }
+                            .overlay(alignment: .top) {
+                                Text("Graphics are stopped in settings-only mode").font(.caption).padding(10)
+                                    .background(.regularMaterial).padding(12)
+                            }
                     } else {
-                    EffectPreview(angle: model.displayAngle, settings: model.settings,
-                                  reduceMotion: reduceMotion, onFailure: { renderingError = $0 },
-                                  registerCleanup: { model.stopPreviewRendering = $0 })
+                        EffectPreview(
+                            angle: model.displayAngle, settings: model.settings,
+                            reduceMotion: reduceMotion, onFailure: { renderingError = $0 },
+                            registerCleanup: { model.stopPreviewRendering = $0 })
                     }
                     if let renderingError {
                         Text(renderingError).font(.callout).foregroundStyle(.white).padding(24)
@@ -43,54 +47,89 @@ struct PreviewWorkspace: View {
             }
             .frame(maxWidth: .infinity)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Desktop preview at \(Int(model.displayAngle)) degrees, \(Int(model.previewProgress * 100)) percent effect")
+            .accessibilityLabel(
+                "Desktop preview at \(Int(model.displayAngle)) degrees, \(Int(model.previewProgress * 100)) percent effect"
+            )
             .padding(.vertical, 16)
             VStack(spacing: 12) {
                 HStack {
                     Text("Preview angle").font(.system(size: 12))
                     Spacer()
-                    Text("\(Int(model.displayAngle))°").font(.system(size: 12).monospacedDigit()).foregroundStyle(.secondary)
+                    Text("\(Int(model.displayAngle))°").font(.system(size: 12).monospacedDigit()).foregroundStyle(
+                        .secondary)
                 }
-                Slider(value: $model.previewAngle, in: 8...145, onEditingChanged: { editing in
-                    if editing { model.stopPreview(); model.followLid = false }
-                }).disabled(model.followLid || model.desktopPreview)
+                Slider(
+                    value: $model.previewAngle, in: 8...145,
+                    onEditingChanged: { editing in
+                        if editing {
+                            model.stopPreview()
+                            model.followLid = false
+                        }
+                    }
+                ).disabled(model.followLid || model.desktopPreview)
                     .accessibilityLabel("Preview angle")
                 HStack(spacing: 8) {
                     Button("Closed") { inspect(angle: 8) }
                     Button("Mid-fold") { model.inspectFold() }
                     Button("Open") { inspect(angle: max(112, model.settings.clearAngle + 5)) }
                     Spacer()
-                    Toggle("Follow lid", isOn: Binding(get: { model.followLid }, set: { value in
-                        model.stopPreview(); model.followLid = value
-                    })).toggleStyle(.checkbox).disabled(!model.sensorConnected || model.previewPlaying)
+                    Toggle(
+                        "Follow lid",
+                        isOn: Binding(
+                            get: { model.followLid },
+                            set: { value in
+                                model.stopPreview()
+                                model.followLid = value
+                            })
+                    ).toggleStyle(.checkbox).disabled(!model.sensorConnected || model.previewPlaying)
                 }.controlSize(.small).font(.system(size: 11))
             }
             .disabled(model.settingsOnly)
-            .help(model.settingsOnly ? "Preview controls are unavailable while graphics are stopped." : "Inspect the effect at any lid angle.")
+            .help(
+                model.settingsOnly
+                    ? "Preview controls are unavailable while graphics are stopped."
+                    : "Inspect the effect at any lid angle.")
             Spacer(minLength: 22)
             Divider().padding(.bottom, 18)
             HStack(spacing: 10) {
-                Button { model.playPreview() } label: {
-                    Label(model.previewPlaying && !model.desktopPreview ? "Stop animation" : "Animate preview",
-                          systemImage: model.previewPlaying && !model.desktopPreview ? "stop.fill" : "play.fill")
+                Button {
+                    model.playPreview()
+                } label: {
+                    Label(
+                        model.previewPlaying && !model.desktopPreview ? "Stop animation" : "Animate preview",
+                        systemImage: model.previewPlaying && !model.desktopPreview ? "stop.fill" : "play.fill")
                 }.disabled(model.settingsOnly || model.desktopPreview).help("Animate this preview (⌥⌘P)")
                 Spacer(minLength: 0)
-                Button { model.playPreview(onDesktop: true) } label: {
-                    Label(model.desktopPreview ? "Stop test" : "Test on desktop", systemImage: model.desktopPreview ? "stop.fill" : "display")
-                }.disabled(model.settingsOnly || (model.previewPlaying && !model.desktopPreview) || !model.settings.enabled || !model.settings.blurEnabled)
-                    .help("Test on your real desktop (⌘P)")
+                Button {
+                    model.playPreview(onDesktop: true)
+                } label: {
+                    Label(
+                        model.desktopPreview ? "Stop test" : "Test on desktop",
+                        systemImage: model.desktopPreview ? "stop.fill" : "display")
+                }.disabled(
+                    model.settingsOnly || (model.previewPlaying && !model.desktopPreview) || !model.settings.enabled
+                        || !model.settings.blurEnabled
+                )
+                .help("Test on your real desktop (⌘P)")
             }.controlSize(.large)
-            Text(model.settingsOnly ? "Graphics are stopped. This sample stays still while you adjust settings." :
-                    model.desktopPreview ? "Press Esc to pause the desktop effect at any time." :
-                    !model.settings.enabled ? "DuoLid is paused. You can still tune the preview." :
-                    "Adjust the preview angle to inspect the fold. Changes apply instantly.")
-                .font(.system(size: 11)).foregroundStyle(.secondary).padding(.top, 10)
-                .frame(height: 30, alignment: .topLeading)
+            Text(
+                model.settingsOnly
+                    ? "Graphics are stopped. This sample stays still while you adjust settings."
+                    : model.desktopPreview
+                        ? "Press Esc to pause the desktop effect at any time."
+                        : !model.settings.enabled
+                            ? "DuoLid is paused. You can still tune the preview."
+                            : "Adjust the preview angle to inspect the fold. Changes apply instantly."
+            )
+            .font(.system(size: 11)).foregroundStyle(.secondary).padding(.top, 10)
+            .frame(height: 30, alignment: .topLeading)
         }.padding(28)
     }
 
     private func inspect(angle: Double) {
-        model.stopPreview(); model.followLid = false; model.previewAngle = angle
+        model.stopPreview()
+        model.followLid = false
+        model.previewAngle = angle
     }
 }
 
@@ -139,20 +178,30 @@ private final class PreviewSurface: NSView {
             layer.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
             layer.presentsWithTransaction = false
             layer.displaySyncEnabled = true
-            let imageRenderer = ImageRenderer(content: PreviewDesktop().frame(width: 384, height: 248).environment(\.colorScheme, .light))
+            let imageRenderer = ImageRenderer(
+                content: PreviewDesktop().frame(width: 384, height: 248).environment(\.colorScheme, .light))
             imageRenderer.scale = 4
             guard let image = imageRenderer.cgImage else { throw RenderError.unavailable }
             var buffer: CVPixelBuffer?
-            let attributes: [String: Any] = [kCVPixelBufferMetalCompatibilityKey as String: true,
-                                            kCVPixelBufferIOSurfacePropertiesKey as String: [:]]
-            guard CVPixelBufferCreate(nil, image.width, image.height, kCVPixelFormatType_32BGRA, attributes as CFDictionary, &buffer) == kCVReturnSuccess,
-                  let buffer else { throw RenderError.unavailable }
+            let attributes: [String: Any] = [
+                kCVPixelBufferMetalCompatibilityKey as String: true,
+                kCVPixelBufferIOSurfacePropertiesKey as String: [:],
+            ]
+            guard
+                CVPixelBufferCreate(
+                    nil, image.width, image.height, kCVPixelFormatType_32BGRA, attributes as CFDictionary, &buffer)
+                    == kCVReturnSuccess,
+                let buffer
+            else { throw RenderError.unavailable }
             CVPixelBufferLockBaseAddress(buffer, [])
             defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
             let bitmap = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue).union(.byteOrder32Little)
-            guard let graphics = CGContext(data: CVPixelBufferGetBaseAddress(buffer), width: image.width, height: image.height,
-                                           bitsPerComponent: 8, bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
-                                           space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: bitmap.rawValue) else { throw RenderError.unavailable }
+            guard
+                let graphics = CGContext(
+                    data: CVPixelBufferGetBaseAddress(buffer), width: image.width, height: image.height,
+                    bitsPerComponent: 8, bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+                    space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: bitmap.rawValue)
+            else { throw RenderError.unavailable }
             graphics.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
             frames.set(buffer)
             // Match blur's size relative to the real screen, at the preview's resolution.
@@ -167,23 +216,37 @@ private final class PreviewSurface: NSView {
     func update(angle: Double, settings: DuoSettings, reduceMotion: Bool) {
         let progress = settings.blurEnabled ? LidMath.progress(angle: angle, clearAngle: settings.clearAngle) : 0
         guard settings != lastSettings || progress != lastProgress || reduceMotion != lastReduceMotion else { return }
-        lastSettings = settings; lastProgress = progress; lastReduceMotion = reduceMotion
+        lastSettings = settings
+        lastProgress = progress
+        lastReduceMotion = reduceMotion
         renderer?.settings = settings
         renderer?.progress = progress
         renderer?.reduceMotion = reduceMotion && settings.respectReduceMotion
         requestRender()
     }
 
-    override func layout() { super.layout(); resizeDrawable() }
-    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); resizeDrawable() }
-    override func viewDidChangeBackingProperties() { super.viewDidChangeBackingProperties(); resizeDrawable() }
+    override func layout() {
+        super.layout()
+        resizeDrawable()
+    }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        resizeDrawable()
+    }
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        resizeDrawable()
+    }
 
     private func resizeDrawable() {
         guard let layer = layer as? CAMetalLayer else { return }
         let scale = window?.backingScaleFactor ?? 2
         layer.contentsScale = scale
         let size = CGSize(width: max(1, bounds.width * scale), height: max(1, bounds.height * scale))
-        if layer.drawableSize != size { layer.drawableSize = size; requestRender() }
+        if layer.drawableSize != size {
+            layer.drawableSize = size
+            requestRender()
+        }
     }
 
     private func requestRender() {
@@ -196,14 +259,21 @@ private final class PreviewSurface: NSView {
     }
 
     func stopRendering() async {
-        if let stopTask { await stopTask.value; return }
+        if let stopTask {
+            await stopTask.value
+            return
+        }
         isStopping = true
-        pendingDraw?.cancel(); pendingDraw = nil
+        pendingDraw?.cancel()
+        pendingDraw = nil
         let renderer = renderer
         let queue = renderQueue
         let task = Task { @MainActor [weak self] in
             await withCheckedContinuation { continuation in
-                queue.async { _ = renderer?.finishRendering(); continuation.resume() }
+                queue.async {
+                    _ = renderer?.finishRendering()
+                    continuation.resume()
+                }
             }
             self?.renderer = nil
         }

@@ -7,8 +7,17 @@ final class LatestLidSample: @unchecked Sendable {
     private var deliveryPending = false
     func set(_ value: Double?) { lock.withLock { angle = value } }
     func scheduleDelivery() -> Bool {
-        lock.withLock { if deliveryPending { return false }; deliveryPending = true; return true }
+        lock.withLock {
+            if deliveryPending { return false }
+            deliveryPending = true
+            return true
+        }
     }
-    func takeForDelivery() -> Double? { lock.withLock { deliveryPending = false; return angle } }
+    func takeForDelivery() -> Double? {
+        lock.withLock {
+            deliveryPending = false
+            return angle
+        }
+    }
     func get() -> Double? { lock.withLock { angle } }
 }

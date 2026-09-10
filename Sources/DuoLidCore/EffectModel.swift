@@ -11,13 +11,25 @@ public enum EffectStyle: String, Codable, CaseIterable, Sendable {
         }
     }
     public var radius: Double {
-        switch self { case .duo: return 38; case .frost: return 52; case .quiet: return 22 }
+        switch self {
+        case .duo: return 38
+        case .frost: return 52
+        case .quiet: return 22
+        }
     }
     public var perspective: Double {
-        switch self { case .duo: return 78 * .pi / 180; case .frost: return 0; case .quiet: return 38 * .pi / 180 }
+        switch self {
+        case .duo: return 78 * .pi / 180
+        case .frost: return 0
+        case .quiet: return 38 * .pi / 180
+        }
     }
     public var shade: Double {
-        switch self { case .duo: return 0.17; case .frost: return 0.08; case .quiet: return 0.055 }
+        switch self {
+        case .duo: return 0.17
+        case .frost: return 0.08
+        case .quiet: return 0.055
+        }
     }
 }
 
@@ -49,14 +61,22 @@ public enum GlowPalette: String, Codable, CaseIterable, Sendable {
 public enum GlowCorners: String, Codable, CaseIterable, Sendable {
     case all, lower, upper
     public var title: String {
-        switch self { case .all: return "All corners"; case .lower: return "Lower corners"; case .upper: return "Upper corners" }
+        switch self {
+        case .all: return "All corners"
+        case .lower: return "Lower corners"
+        case .upper: return "Upper corners"
+        }
     }
 }
 
 public enum FrameRateMode: String, Codable, CaseIterable, Sendable {
     case automatic, sixty, oneTwenty
     public var title: String {
-        switch self { case .automatic: return "Automatic"; case .sixty: return "60 fps"; case .oneTwenty: return "120 fps" }
+        switch self {
+        case .automatic: return "Automatic"
+        case .sixty: return "60 fps"
+        case .oneTwenty: return "120 fps"
+        }
     }
     public func targetFPS(maximum: Int, lowPower: Bool) -> Int {
         let limit = maximum > 0 ? maximum : 60
@@ -108,7 +128,8 @@ public struct DuoSettings: Codable, Equatable, Sendable {
         clearAngle = (try? values.decodeIfPresent(Double.self, forKey: .clearAngle)) ?? clearAngle
         volume = (try? values.decodeIfPresent(Double.self, forKey: .volume)) ?? volume
         tone = (try? values.decodeIfPresent(LatchTone.self, forKey: .tone)) ?? tone
-        respectReduceMotion = (try? values.decodeIfPresent(Bool.self, forKey: .respectReduceMotion)) ?? respectReduceMotion
+        respectReduceMotion =
+            (try? values.decodeIfPresent(Bool.self, forKey: .respectReduceMotion)) ?? respectReduceMotion
         batterySaver = (try? values.decodeIfPresent(Bool.self, forKey: .batterySaver)) ?? batterySaver
         perspective = (try? values.decodeIfPresent(Double.self, forKey: .perspective)) ?? perspective
         shadow = (try? values.decodeIfPresent(Double.self, forKey: .shadow)) ?? shadow
@@ -122,7 +143,8 @@ public struct DuoSettings: Codable, Equatable, Sendable {
         if let mode = try? values.decode(FrameRateMode.self, forKey: .frameRateMode) {
             frameRateMode = mode
         } else if !values.contains(.frameRateMode),
-                  let legacy = try? decoder.container(keyedBy: LegacyKeys.self).decode(Int.self, forKey: .frameRate) {
+            let legacy = try? decoder.container(keyedBy: LegacyKeys.self).decode(Int.self, forKey: .frameRate)
+        {
             if legacy == 60 { frameRateMode = .sixty }
             if legacy == 120 { frameRateMode = .oneTwenty }
         }
@@ -209,10 +231,17 @@ public struct AngleSmoother: Sendable {
         let decay = exp(-omega * dt)
         value = bounded(angle + (displacement + component * dt) * decay, 0...180, fallback: angle)
         velocity = (velocity - omega * component * dt) * decay
-        if abs(value! - angle) < 0.02 && abs(velocity) < 0.1 { value = angle; velocity = 0 }
+        if abs(value! - angle) < 0.02 && abs(velocity) < 0.1 {
+            value = angle
+            velocity = 0
+        }
         return value
     }
-    public mutating func reset() { value = nil; timestamp = nil; velocity = 0 }
+    public mutating func reset() {
+        value = nil
+        timestamp = nil
+        velocity = 0
+    }
 }
 
 /// The chosen start angle is well below normal working positions.
@@ -221,7 +250,10 @@ public struct CaptureGate: Sendable {
     public private(set) var isEngaged = false
     public init() {}
     public mutating func update(angle: Double, clearAngle: Double, enabled: Bool) -> Bool {
-        guard enabled, angle.isFinite, clearAngle.isFinite else { isEngaged = false; return false }
+        guard enabled, angle.isFinite, clearAngle.isFinite else {
+            isEngaged = false
+            return false
+        }
         let margin = isEngaged ? 0.0 : 0.25
         isEngaged = angle < clearAngle - margin
         return isEngaged
@@ -236,15 +268,24 @@ public struct CapturePreparationGate: Sendable {
     private var lastClosing = -Double.infinity
     public init() {}
     public mutating func update(angle: Double, startAngle: Double, enabled: Bool, at time: Double) -> Bool {
-        guard enabled, angle.isFinite, startAngle.isFinite, time.isFinite else { reset(); return false }
+        guard enabled, angle.isFinite, startAngle.isFinite, time.isFinite else {
+            reset()
+            return false
+        }
         if let previousAngle {
-            if angle < previousAngle - 0.05 { lastClosing = time }
-            else if angle > previousAngle + 0.05 { lastClosing = -.infinity }
+            if angle < previousAngle - 0.05 {
+                lastClosing = time
+            } else if angle > previousAngle + 0.05 {
+                lastClosing = -.infinity
+            }
         }
         previousAngle = angle
         return angle >= startAngle && angle < startAngle + 20 && time - lastClosing < 0.25
     }
-    public mutating func reset() { previousAngle = nil; lastClosing = -.infinity }
+    public mutating func reset() {
+        previousAngle = nil
+        lastClosing = -.infinity
+    }
 }
 
 public struct LatchDetector: Sendable {

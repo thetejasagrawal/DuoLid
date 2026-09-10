@@ -1,14 +1,16 @@
 import AppKit
-import MetalKit
 import DuoLidCore
+import MetalKit
 
 /// Uses synthetic pixels only. This does not request or read the desktop.
 @MainActor
 enum RenderVerification {
     static func run() throws {
         let renderer = try MetalRenderer(frames: CapturedFrame())
-        let width = 768, height = 480
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)
+        let width = 768
+        let height = 480
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)
         descriptor.usage = [.shaderRead]
         descriptor.storageMode = renderer.device.hasUnifiedMemory ? .shared : .managed
         guard let source = renderer.device.makeTexture(descriptor: descriptor) else { throw RenderError.unavailable }
@@ -22,7 +24,8 @@ enum RenderVerification {
                 pixels[offset + 2] = cell ? 110 : 35
             }
         }
-        source.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: pixels, bytesPerRow: width * 4)
+        source.replace(
+            region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: pixels, bytesPerRow: width * 4)
         renderer.backingScale = 1
         renderer.progress = 0
         let clear = try read(renderer.renderOffscreen(source: source))
@@ -55,8 +58,11 @@ enum RenderVerification {
         }
         let lowerGain = luminanceGain(x: 15, y: height - 15)
         let upperGain = luminanceGain(x: 15, y: 15)
-        guard lowerGain > 20, upperGain < 2 else { throw checkError("Corner selection did not confine the glow: \(lowerGain), \(upperGain).") }
-        let output = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("artifacts/render-check")
+        guard lowerGain > 20, upperGain < 2 else {
+            throw checkError("Corner selection did not confine the glow: \(lowerGain), \(upperGain).")
+        }
+        let output = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(
+            "artifacts/render-check")
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         try png(clear, width: width, height: height).write(to: output.appendingPathComponent("01-clear.png"))
         try png(blurred, width: width, height: height).write(to: output.appendingPathComponent("02-duo-blur.png"))
@@ -69,12 +75,15 @@ enum RenderVerification {
         let topSample = (height / 10 * width + width / 2) * 4
         let hingeSample = ((height - 2) * width + width / 2) * 4
         guard folded[topSample] <= 5, folded[topSample + 1] <= 5,
-              folded[hingeSample + 1] > 50 else { throw checkError("The desktop frame did not descend toward the hinge.") }
+            folded[hingeSample + 1] > 50
+        else { throw checkError("The desktop frame did not descend toward the hinge.") }
         try png(folded, width: width, height: height).write(to: output.appendingPathComponent("05-hinged-frame.png"))
         renderer.settings.glowEnabled = true
         renderer.settings.glowCorners = .all
         let bleeding = try read(renderer.renderOffscreen(source: source))
-        let topCorner = LidMath.projectedPoint(x: 0.08, y: 0, radians: renderer.settings.style.perspective * renderer.settings.perspective * renderer.progress)
+        let topCorner = LidMath.projectedPoint(
+            x: 0.08, y: 0,
+            radians: renderer.settings.style.perspective * renderer.settings.perspective * renderer.progress)
         let bleedSample = (Int((topCorner.y - 0.04) * Double(height)) * width + Int(topCorner.x * Double(width))) * 4
         let spillGain = (0..<3).map { Int(bleeding[bleedSample + $0]) - Int(folded[bleedSample + $0]) }.max()!
         guard spillGain > 40, bleeding[topSample] <= 5 else {
@@ -89,7 +98,8 @@ enum RenderVerification {
         guard (0..<3).allSatisfy({ noBleed[bleedSample + $0] <= 5 }), fullGain > 15 else {
             throw checkError("Edge bleed does not adjust independently from the screen glow.")
         }
-        try png(fullBleed, width: width, height: height).write(to: output.appendingPathComponent("08-full-edge-bleed.png"))
+        try png(fullBleed, width: width, height: height).write(
+            to: output.appendingPathComponent("08-full-edge-bleed.png"))
         renderer.settings.edgeBleed = DuoSettings().edgeBleed
         var variants = 0
         for style in EffectStyle.allCases {
@@ -103,7 +113,9 @@ enum RenderVerification {
         }
         try checkBlurSampling(renderer, source: source, width: width, height: height, output: output)
         try benchmarkNativeResolution(renderer)
-        print("Metal verification passed: open pixels unchanged; blur edge energy \(String(format: "%.2f", blurredEdges / clearEdges))×; glow confined to selected corners; \(variants) style/palette combinations rendered.")
+        print(
+            "Metal verification passed: open pixels unchanged; blur edge energy \(String(format: "%.2f", blurredEdges / clearEdges))×; glow confined to selected corners; \(variants) style/palette combinations rendered."
+        )
         print("Synthetic render artifacts: \(output.path)")
     }
 
@@ -111,12 +123,14 @@ enum RenderVerification {
         let screen = DesktopEffect.builtInScreen
         let width = screen.map { Int($0.frame.width * $0.backingScaleFactor) } ?? 3456
         let height = screen.map { Int($0.frame.height * $0.backingScaleFactor) } ?? 2234
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)
         descriptor.storageMode = renderer.device.hasUnifiedMemory ? .shared : .managed
         descriptor.usage = .shaderRead
         guard let source = renderer.device.makeTexture(descriptor: descriptor) else { throw RenderError.unavailable }
         let synthetic = [UInt8](repeating: 128, count: width * height * 4)
-        source.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: synthetic, bytesPerRow: width * 4)
+        source.replace(
+            region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: synthetic, bytesPerRow: width * 4)
         renderer.settings = DuoSettings()
         renderer.settings.glowEnabled = true
         renderer.backingScale = 2
@@ -127,10 +141,14 @@ enum RenderVerification {
             if frame >= 3 { times.append(renderer.lastGPUTime * 1_000) }
         }
         times.sort()
-        print("Native \(width)×\(height) GPU timing, blur + fold + glow: median \(String(format: "%.2f", times[times.count / 2])) ms, maximum \(String(format: "%.2f", times.last!)) ms across \(times.count) changing frames.")
+        print(
+            "Native \(width)×\(height) GPU timing, blur + fold + glow: median \(String(format: "%.2f", times[times.count / 2])) ms, maximum \(String(format: "%.2f", times.last!)) ms across \(times.count) changing frames."
+        )
     }
 
-    private static func checkBlurSampling(_ renderer: MetalRenderer, source: MTLTexture, width: Int, height: Int, output: URL) throws {
+    private static func checkBlurSampling(
+        _ renderer: MetalRenderer, source: MTLTexture, width: Int, height: Int, output: URL
+    ) throws {
         // A narrow bright line exposes sparse-kernel echoes that broad checkerboards miss.
         var line = [UInt8](repeating: 0, count: width * height * 4)
         for y in 0..<height {
@@ -142,20 +160,23 @@ enum RenderVerification {
                 }
             }
         }
-        source.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: line, bytesPerRow: width * 4)
+        source.replace(
+            region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: line, bytesPerRow: width * 4)
         renderer.settings = DuoSettings()
         renderer.settings.perspective = 0
         renderer.settings.shadow = 0
         renderer.backingScale = 2
         renderer.progress = 1
         let result = try read(renderer.renderOffscreen(source: source))
-        try png(result, width: width, height: height).write(to: output.appendingPathComponent("06-smooth-highlight.png"))
+        try png(result, width: width, height: height).write(
+            to: output.appendingPathComponent("06-smooth-highlight.png"))
         let row = height / 12
         let jumps = ((width / 2 - 200)..<(width / 2 + 200)).map { x in
             abs(Int(result[(row * width + x) * 4]) - Int(result[(row * width + x + 1) * 4]))
         }
         guard jumps.max()! <= 2 else {
-            throw checkError("Blur has sparse sampling echoes: adjacent highlight pixels jump by \(jumps.max()!) levels.")
+            throw checkError(
+                "Blur has sparse sampling echoes: adjacent highlight pixels jump by \(jumps.max()!) levels.")
         }
         print("Blur sampling passed: isolated highlight is smooth (maximum adjacent step \(jumps.max()!) levels).")
         var largestDifference = 0
@@ -166,8 +187,13 @@ enum RenderVerification {
             let difference = zip(optimized, reference).map { abs(Int($0) - Int($1)) }.max()!
             largestDifference = max(largestDifference, difference)
         }
-        guard largestDifference <= 4 else { throw checkError("Optimized Gaussian diverged from the native-resolution reference by \(largestDifference) levels.") }
-        print("Blur quality reference passed: maximum channel difference \(largestDifference)/255 across five fold positions.")
+        guard largestDifference <= 4 else {
+            throw checkError(
+                "Optimized Gaussian diverged from the native-resolution reference by \(largestDifference) levels.")
+        }
+        print(
+            "Blur quality reference passed: maximum channel difference \(largestDifference)/255 across five fold positions."
+        )
     }
 
     private static func checkError(_ message: String) -> Error {
@@ -176,7 +202,9 @@ enum RenderVerification {
 
     private static func read(_ texture: MTLTexture) -> [UInt8] {
         var data = [UInt8](repeating: 0, count: texture.width * texture.height * 4)
-        texture.getBytes(&data, bytesPerRow: texture.width * 4, from: MTLRegionMake2D(0, 0, texture.width, texture.height), mipmapLevel: 0)
+        texture.getBytes(
+            &data, bytesPerRow: texture.width * 4, from: MTLRegionMake2D(0, 0, texture.width, texture.height),
+            mipmapLevel: 0)
         return data
     }
 
@@ -194,9 +222,10 @@ enum RenderVerification {
     private static func png(_ pixels: [UInt8], width: Int, height: Int) -> Data {
         let provider = CGDataProvider(data: Data(pixels) as CFData)!
         let info = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue).union(.byteOrder32Little)
-        let image = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
-                            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: info, provider: provider,
-                            decode: nil, shouldInterpolate: false, intent: .defaultIntent)!
+        let image = CGImage(
+            width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: info, provider: provider,
+            decode: nil, shouldInterpolate: false, intent: .defaultIntent)!
         return NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!
     }
 }

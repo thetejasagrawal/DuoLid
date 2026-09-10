@@ -1,8 +1,8 @@
 import AppKit
-import MetalKit
-import MetalPerformanceShaders
 import CoreVideo
 import DuoLidCore
+import MetalKit
+import MetalPerformanceShaders
 import OSLog
 
 enum RenderLog {
@@ -23,7 +23,10 @@ final class RenderStatistics: @unchecked Sendable {
     private var firstSubmission: Double?
     private var lastPresentation: Double?
     func submitted(id: UInt64, at time: Double) {
-        lock.withLock { pending[id] = time; if firstSubmission == nil { firstSubmission = time } }
+        lock.withLock {
+            pending[id] = time
+            if firstSubmission == nil { firstSubmission = time }
+        }
     }
     func completed(id: UInt64) { _ = lock.withLock { pending.removeValue(forKey: id) } }
     func isStalled(at time: Double) -> Bool {
@@ -38,26 +41,31 @@ final class RenderStatistics: @unchecked Sendable {
         guard time.isFinite, time > 0 else { return }
         lock.withLock {
             lastPresentation = max(lastPresentation ?? 0, time)
-            if timestamps.count < 8_192 { timestamps.append(time) }
-            else { timestamps[writeIndex % 8_192] = time }
+            if timestamps.count < 8_192 { timestamps.append(time) } else { timestamps[writeIndex % 8_192] = time }
             writeIndex += 1
         }
     }
     func skip() { lock.withLock { skipped += 1 } }
     func record(gpu: Double, age: Double, cpu: Double, lead: Double, wait: Double) {
         lock.withLock {
-            count += 1; gpuTime += max(0, gpu); arrivalAge += max(0, age)
-            cpuTime += max(0, cpu); presentationLead += lead; queueWait += max(0, wait)
+            count += 1
+            gpuTime += max(0, gpu)
+            arrivalAge += max(0, age)
+            cpuTime += max(0, cpu)
+            presentationLead += lead
+            queueWait += max(0, wait)
         }
     }
     func snapshot(targetFPS: Double, warmup: Double = 0.25) -> PerformanceReport {
         lock.withLock {
             let scale = 1_000 / Double(max(1, count))
-            return PerformanceReport(targetFPS: targetFPS, completedFrames: count,
+            return PerformanceReport(
+                targetFPS: targetFPS, completedFrames: count,
                 skippedSubmissions: skipped, gpuMS: gpuTime * scale, cpuMS: cpuTime * scale,
                 gpuQueueMS: queueWait * scale, captureArrivalAgeMS: arrivalAge * scale,
                 presentationLeadMS: presentationLead * scale,
-                presentation: PresentationTiming(timestamps: timestamps, targetFPS: targetFPS, warmup: warmup), capture: frames.timing())
+                presentation: PresentationTiming(timestamps: timestamps, targetFPS: targetFPS, warmup: warmup),
+                capture: frames.timing())
         }
     }
     func recentTimestamps(since time: Double) -> [Double] {
@@ -66,7 +74,9 @@ final class RenderStatistics: @unchecked Sendable {
     func report(targetFPS: Double) {
         let value = snapshot(targetFPS: targetFPS)
         guard value.completedFrames > 0 else { return }
-        RenderLog.logger.notice("Presented: \(value.presentation.framesPerSecond, format: .fixed(precision: 1)) fps, p95 \(value.presentation.p95IntervalMS, format: .fixed(precision: 2)) ms, missed \(value.presentation.missedDeadlineRatio * 100, format: .fixed(precision: 2))%; GPU \(value.gpuMS, format: .fixed(precision: 2)) ms, CPU \(value.cpuMS, format: .fixed(precision: 2)) ms, queue \(value.gpuQueueMS, format: .fixed(precision: 2)) ms")
+        RenderLog.logger.notice(
+            "Presented: \(value.presentation.framesPerSecond, format: .fixed(precision: 1)) fps, p95 \(value.presentation.p95IntervalMS, format: .fixed(precision: 2)) ms, missed \(value.presentation.missedDeadlineRatio * 100, format: .fixed(precision: 2))%; GPU \(value.gpuMS, format: .fixed(precision: 2)) ms, CPU \(value.cpuMS, format: .fixed(precision: 2)) ms, queue \(value.gpuQueueMS, format: .fixed(precision: 2)) ms"
+        )
     }
 }
 
@@ -76,25 +86,35 @@ final class CapturedFrame: @unchecked Sendable {
     private var received = 0
     init(source: CaptureTiming.Source = .synthetic) { self.source = source }
     func timing() -> CaptureTiming {
-        lock.withLock { CaptureTiming(source: source, receivedFrames: received, timestamps: arrivals,
-                                     now: ProcessInfo.processInfo.systemUptime) }
+        lock.withLock {
+            CaptureTiming(
+                source: source, receivedFrames: received, timestamps: arrivals,
+                now: ProcessInfo.processInfo.systemUptime)
+        }
     }
     private let lock = NSLock()
     private var buffer: CVPixelBuffer?
     private var timestamp: TimeInterval = 0
     func set(_ buffer: CVPixelBuffer) {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         self.buffer = buffer
         timestamp = ProcessInfo.processInfo.systemUptime
         if arrivals.count < 512 { arrivals.append(timestamp) } else { arrivals[received % 512] = timestamp }
         received += 1
     }
     func get() -> (CVPixelBuffer, TimeInterval)? {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         guard let buffer else { return nil }
         return (buffer, timestamp)
     }
-    func clear() { lock.lock(); buffer = nil; timestamp = 0; lock.unlock() }
+    func clear() {
+        lock.lock()
+        buffer = nil
+        timestamp = 0
+        lock.unlock()
+    }
 }
 
 struct EffectUniforms {
@@ -138,12 +158,15 @@ private final class EffectGPU: Sendable {
             library = try device.makeLibrary(URL: url)
         } else {
             #if DUOLID_PACKAGED
-            throw RenderError.shaderMissing
+                throw RenderError.shaderMissing
             #else
-            // Source builds work without Xcode's Metal toolchain. The release
-            // packaging script requires and includes the compiled library.
-            guard let url = Bundle.main.url(forResource: "Effects", withExtension: "metal") ?? Bundle.module.url(forResource: "Effects", withExtension: "metal") else { throw RenderError.shaderMissing }
-            library = try device.makeLibrary(source: String(contentsOf: url, encoding: .utf8), options: nil)
+                // Source builds work without Xcode's Metal toolchain. The release
+                // packaging script requires and includes the compiled library.
+                guard
+                    let url = Bundle.main.url(forResource: "Effects", withExtension: "metal")
+                        ?? Bundle.module.url(forResource: "Effects", withExtension: "metal")
+                else { throw RenderError.shaderMissing }
+                library = try device.makeLibrary(source: String(contentsOf: url, encoding: .utf8), options: nil)
             #endif
         }
         let descriptor = MTLRenderPipelineDescriptor()
@@ -220,7 +243,9 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         if let device { _ = try? EffectGPU.get(device: device) }
     }
 
-    init(frames: CapturedFrame, device: MTLDevice? = MTLCreateSystemDefaultDevice(), liveAngle: LatestLidSample? = nil) throws {
+    init(frames: CapturedFrame, device: MTLDevice? = MTLCreateSystemDefaultDevice(), liveAngle: LatestLidSample? = nil)
+        throws
+    {
         guard let device else { throw RenderError.unavailable }
         let gpu = try EffectGPU.get(device: device)
         guard let queue = device.makeCommandQueue() else { throw RenderError.unavailable }
@@ -237,15 +262,24 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
 
     func update(angle: Double, settings: DuoSettings, reduceMotion: Bool, useLiveAngle: Bool = true) {
         stateLock.withLock {
-            state.useLiveAngle = useLiveAngle; state.targetAngle = angle; state.settings = settings; state.reduceMotion = reduceMotion
+            state.useLiveAngle = useLiveAngle
+            state.targetAngle = angle
+            state.settings = settings
+            state.reduceMotion = reduceMotion
         }
     }
 
     /// Called only on the dedicated render queue. No AppKit or SwiftUI work runs here.
     func draw(to layer: CAMetalLayer, at presentationTime: CFTimeInterval = CACurrentMediaTime()) {
         guard frames.get() != nil else { return }
-        guard inFlight.wait(timeout: .now()) == .success else { statistics.skip(); return }
-        guard let drawable = layer.nextDrawable() else { inFlight.signal(); return }
+        guard inFlight.wait(timeout: .now()) == .success else {
+            statistics.skip()
+            return
+        }
+        guard let drawable = layer.nextDrawable() else {
+            inFlight.signal()
+            return
+        }
         draw(drawable: drawable, at: presentationTime)
     }
 
@@ -255,11 +289,15 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         defer { if !committed { inFlight.signal() } }
         guard let (pixelBuffer, receivedAt) = frames.get(), let cache = textureCache else { return }
         var cvTexture: CVMetalTexture?
-        let width = CVPixelBufferGetWidth(pixelBuffer), height = CVPixelBufferGetHeight(pixelBuffer)
-        guard CVMetalTextureCacheCreateTextureFromImage(nil, cache, pixelBuffer, nil, .bgra8Unorm,
-                                                        width, height, 0, &cvTexture) == kCVReturnSuccess,
-              let retainedTexture = cvTexture, let source = CVMetalTextureGetTexture(retainedTexture),
-              let command = commandQueue.makeCommandBuffer() else { return }
+        let width = CVPixelBufferGetWidth(pixelBuffer)
+        let height = CVPixelBufferGetHeight(pixelBuffer)
+        guard
+            CVMetalTextureCacheCreateTextureFromImage(
+                nil, cache, pixelBuffer, nil, .bgra8Unorm,
+                width, height, 0, &cvTexture) == kCVReturnSuccess,
+            let retainedTexture = cvTexture, let source = CVMetalTextureGetTexture(retainedTexture),
+            let command = commandQueue.makeCommandBuffer()
+        else { return }
         // Allocate both blur levels while the first captured frame is prepared,
         // including at zero progress, so crossing the blur threshold allocates no textures.
         prepareTextures(width: width, height: height)
@@ -288,8 +326,10 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
             semaphore.signal()
             statistics.completed(id: id)
             firstFrame?.completed(success: command.status == .completed && command.error == nil)
-            statistics.record(gpu: command.gpuEndTime - command.gpuStartTime, age: frameAge,
-                              cpu: submitted - began, lead: presentationTime - submitted, wait: max(0, command.gpuStartTime - submitted))
+            statistics.record(
+                gpu: command.gpuEndTime - command.gpuStartTime, age: frameAge,
+                cpu: submitted - began, lead: presentationTime - submitted,
+                wait: max(0, command.gpuStartTime - submitted))
             if let error = command.error {
                 let message = error.localizedDescription
                 Task { @MainActor in failure?(message) }
@@ -307,13 +347,20 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
     }
 
     /// The production renderer and offscreen verification use this same pipeline.
-    private func encodeEffect(command: MTLCommandBuffer, source: MTLTexture, target: MTLTexture, state: State, fullResolutionBlur: Bool = false) -> Bool {
-        let settings = state.settings, progress = state.progress, backingScale = state.backingScale
+    private func encodeEffect(
+        command: MTLCommandBuffer, source: MTLTexture, target: MTLTexture, state: State,
+        fullResolutionBlur: Bool = false
+    ) -> Bool {
+        let settings = state.settings
+        let progress = state.progress
+        let backingScale = state.backingScale
         let reduceMotion = state.reduceMotion
-        let width = source.width, height = source.height
+        let width = source.width
+        let height = source.height
         let sigma = Float(settings.style.radius * settings.intensity * progress * backingScale)
         let gradient: Float = settings.style == .frost ? 0 : 1
-        var deep: MTLTexture = source, soft: MTLTexture = source
+        var deep: MTLTexture = source
+        var soft: MTLTexture = source
         if sigma >= 0.25 {
             let reduced = sigma >= 8 && !fullResolutionBlur
             var blurSource = source
@@ -324,11 +371,14 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
                 // A 2× box prefilter, dense Gaussian, and bilinear reconstruction.
                 // Used only for broad blur; the sharp source remains full Retina.
                 downsample.encode(commandBuffer: command, sourceTexture: source, destinationTexture: reducedSource)
-                blurSource = reducedSource; deep = reducedDeepBlur; soft = reducedSoftBlur
+                blurSource = reducedSource
+                deep = reducedDeepBlur
+                soft = reducedSoftBlur
             } else {
                 prepareTextures(width: width, height: height)
                 guard let deepBlur, let softBlur else { return false }
-                deep = deepBlur; soft = softBlur
+                deep = deepBlur
+                soft = softBlur
             }
             updateKernel(&deepKernel, sigma: workingSigma)
             deepKernel?.encode(commandBuffer: command, sourceTexture: blurSource, destinationTexture: deep)
@@ -339,7 +389,8 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         }
         let palette = settings.glowPalette.colors.map { SIMD4<Float>(Float($0[0]), Float($0[1]), Float($0[2]), 1) }
         var uniforms = EffectUniforms(
-            progress: Float(progress), perspective: Float(reduceMotion ? 0 : settings.style.perspective * settings.perspective),
+            progress: Float(progress),
+            perspective: Float(reduceMotion ? 0 : settings.style.perspective * settings.perspective),
             shade: Float(settings.style.shade * settings.shadow * 2),
             glow: Float(settings.glowEnabled ? settings.glowIntensity : 0), spread: Float(settings.glowSpread),
             aspect: Float(width) / Float(height),
@@ -364,12 +415,16 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
     }
 
     func renderOffscreen(source: MTLTexture, fullResolutionBlur: Bool = false) throws -> MTLTexture {
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: source.width, height: source.height, mipmapped: false)
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm, width: source.width, height: source.height, mipmapped: false)
         descriptor.usage = [.renderTarget, .shaderRead]
         descriptor.storageMode = device.hasUnifiedMemory ? .shared : .managed
         guard let target = device.makeTexture(descriptor: descriptor),
-              let command = commandQueue.makeCommandBuffer(),
-              encodeEffect(command: command, source: source, target: target, state: stateLock.withLock { state }, fullResolutionBlur: fullResolutionBlur) else { throw RenderError.unavailable }
+            let command = commandQueue.makeCommandBuffer(),
+            encodeEffect(
+                command: command, source: source, target: target, state: stateLock.withLock { state },
+                fullResolutionBlur: fullResolutionBlur)
+        else { throw RenderError.unavailable }
         if !device.hasUnifiedMemory, let blit = command.makeBlitCommandEncoder() {
             blit.synchronize(resource: target)
             blit.endEncoding()
@@ -383,7 +438,8 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
 
     private func prepareTextures(width: Int, height: Int) {
         guard deepBlur?.width != width || deepBlur?.height != height else { return }
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: width, height: height, mipmapped: false)
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba16Float, width: width, height: height, mipmapped: false)
         descriptor.usage = [.shaderRead, .shaderWrite]
         descriptor.storageMode = .private
         softBlur = device.makeTexture(descriptor: descriptor)
@@ -399,7 +455,8 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
 
     private func prepareReducedTextures(width: Int, height: Int) {
         guard reducedSource?.width != width || reducedSource?.height != height else { return }
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: width, height: height, mipmapped: false)
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba16Float, width: width, height: height, mipmapped: false)
         descriptor.usage = [.shaderRead, .shaderWrite]
         descriptor.storageMode = .private
         reducedSource = device.makeTexture(descriptor: descriptor)
@@ -412,7 +469,9 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         frames.clear()
         softBlur = nil
         deepBlur = nil
-        reducedSource = nil; reducedSoftBlur = nil; reducedDeepBlur = nil
+        reducedSource = nil
+        reducedSoftBlur = nil
+        reducedDeepBlur = nil
         if let textureCache { CVMetalTextureCacheFlush(textureCache, 0) }
     }
 
@@ -420,7 +479,10 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
     /// command buffer fences earlier submissions without blocking the main actor.
     @discardableResult
     func finishRendering() -> Bool {
-        guard submissionID > 0 else { releaseFrames(); return true }
+        guard submissionID > 0 else {
+            releaseFrames()
+            return true
+        }
         if let fence = commandQueue.makeCommandBuffer() {
             let finished = DispatchSemaphore(value: 0)
             fence.addCompletedHandler { _ in finished.signal() }

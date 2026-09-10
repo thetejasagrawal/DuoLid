@@ -1,6 +1,6 @@
 import AppKit
-import SwiftUI
 import DuoLidCore
+import SwiftUI
 
 struct MainView: View {
     @ObservedObject var model: AppModel
@@ -16,8 +16,12 @@ struct MainView: View {
                     Image(systemName: "info.circle").foregroundStyle(.secondary)
                     Text(message).textSelection(.enabled)
                     Spacer()
-                    Button { model.message = nil } label: { Image(systemName: "xmark") }
-                        .buttonStyle(.plain).help("Dismiss message")
+                    Button {
+                        model.message = nil
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(.plain).help("Dismiss message")
                 }.font(.callout).padding(12).background(.quaternary.opacity(0.35))
                 Divider()
             }
@@ -34,14 +38,20 @@ struct MainView: View {
         .frame(minWidth: 750, minHeight: 570)
         .background(DuoTheme.canvas)
         .sheet(isPresented: $model.showingPreferences) { PreferencesView(model: model, appearance: $appearance) }
-        .onAppear { editingAngle = false; angleText = String(Int(model.settings.clearAngle)); applyAppearance() }
+        .onAppear {
+            editingAngle = false
+            angleText = String(Int(model.settings.clearAngle))
+            applyAppearance()
+        }
         .onChange(of: model.settings.clearAngle) { _, value in if !editingAngle { angleText = String(Int(value)) } }
         .onChange(of: editingAngle) { _, editing in if !editing { commitAngle() } }
         .onChange(of: appearance) { _, _ in applyAppearance() }
         .onChange(of: model.settings) { old, new in
-            if old.style != new.style || old.intensity != new.intensity || old.perspective != new.perspective ||
-                old.shadow != new.shadow || old.glowEnabled != new.glowEnabled || old.glowPalette != new.glowPalette ||
-                old.glowIntensity != new.glowIntensity || old.glowSpread != new.glowSpread || old.glowCorners != new.glowCorners || old.edgeBleed != new.edgeBleed {
+            if old.style != new.style || old.intensity != new.intensity || old.perspective != new.perspective
+                || old.shadow != new.shadow || old.glowEnabled != new.glowEnabled || old.glowPalette != new.glowPalette
+                || old.glowIntensity != new.glowIntensity || old.glowSpread != new.glowSpread
+                || old.glowCorners != new.glowCorners || old.edgeBleed != new.edgeBleed
+            {
                 model.revealPreviewEffect()
             }
         }
@@ -64,8 +74,12 @@ struct MainView: View {
                 HStack {
                     Text("Start angle").fontWeight(.semibold)
                     Spacer()
-                    Button("Use 62°") { model.useDefaultStartAngle(); angleText = "62"; angleValidation = nil }
-                        .buttonStyle(.link).font(.caption).disabled(model.settings.clearAngle == 62)
+                    Button("Use 62°") {
+                        model.useDefaultStartAngle()
+                        angleText = "62"
+                        angleValidation = nil
+                    }
+                    .buttonStyle(.link).font(.caption).disabled(model.settings.clearAngle == 62)
                 }
                 HStack(spacing: 9) {
                     Slider(value: $model.settings.clearAngle, in: 45...140, step: 1)
@@ -87,15 +101,23 @@ struct MainView: View {
                 settingToggle("Colorful glow", isOn: $model.settings.glowEnabled)
                 HStack(spacing: 7) {
                     ForEach(GlowPalette.allCases, id: \.self) { palette in
-                        Button { model.settings.glowPalette = palette } label: {
+                        Button {
+                            model.settings.glowPalette = palette
+                        } label: {
                             VStack(spacing: 5) {
                                 LinearGradient(colors: palette.swiftUIColors, startPoint: .leading, endPoint: .trailing)
                                     .frame(height: 18).clipShape(RoundedRectangle(cornerRadius: 4))
                                 Text(palette.title).font(.system(size: 11))
                             }.padding(5).frame(maxWidth: .infinity)
-                                .background(model.settings.glowPalette == palette ? Color.accentColor.opacity(0.13) : .clear,
-                                            in: RoundedRectangle(cornerRadius: 7))
-                                .overlay(RoundedRectangle(cornerRadius: 7).stroke(model.settings.glowPalette == palette ? Color.accentColor : .clear, lineWidth: 1.5))
+                                .background(
+                                    model.settings.glowPalette == palette ? Color.accentColor.opacity(0.13) : .clear,
+                                    in: RoundedRectangle(cornerRadius: 7)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 7).stroke(
+                                        model.settings.glowPalette == palette ? Color.accentColor : .clear,
+                                        lineWidth: 1.5)
+                                )
                                 .contentShape(Rectangle())
                         }.buttonStyle(.plain)
                             .accessibilityLabel("\(palette.title) glow palette")
@@ -105,8 +127,12 @@ struct MainView: View {
                 TuningSlider("Brightness", value: $model.settings.glowIntensity).disabled(!model.settings.glowEnabled)
                 TuningSlider("Edge bleed", value: $model.settings.edgeBleed)
                     .help("How much soft light spills into the black background")
-                Text(model.settings.glowEnabled ? "Edge bleed softens the fold against black." : "Turn on colorful glow to edit its colors. Edge bleed works independently.")
-                    .font(.caption).foregroundStyle(.secondary)
+                Text(
+                    model.settings.glowEnabled
+                        ? "Edge bleed softens the fold against black."
+                        : "Turn on colorful glow to edit its colors. Edge bleed works independently."
+                )
+                .font(.caption).foregroundStyle(.secondary)
             }
             Divider()
             VStack(alignment: .leading, spacing: 10) {
@@ -115,12 +141,18 @@ struct MainView: View {
                     Picker("Sound", selection: $model.settings.tone) {
                         ForEach(LatchTone.allCases, id: \.self) { Text($0.title).tag($0) }
                     }.labelsHidden().accessibilityLabel("Opening sound tone")
-                    Button { model.playSound() } label: { Label("Listen", systemImage: "play.fill") }
-                        .help("Play opening sound (⇧⌘P)")
+                    Button {
+                        model.playSound()
+                    } label: {
+                        Label("Listen", systemImage: "play.fill")
+                    }
+                    .help("Play opening sound (⇧⌘P)")
                 }
                 TuningSlider("Volume", value: $model.settings.volume)
             }
-            Button { model.showingAdvanced.toggle() } label: {
+            Button {
+                model.showingAdvanced.toggle()
+            } label: {
                 HStack {
                     Image(systemName: "slider.horizontal.3")
                     Text("More tuning…")
@@ -170,13 +202,20 @@ struct MainView: View {
             let clamped = min(140, max(45, number.rounded()))
             model.settings.clearAngle = clamped
             angleValidation = number < 45 || number > 140 ? "Start angle must be between 45° and 140°." : nil
-        } else { angleValidation = "Enter an angle from 45° to 140°. Your previous angle is kept." }
+        } else {
+            angleValidation = "Enter an angle from 45° to 140°. Your previous angle is kept."
+        }
         angleText = String(Int(model.settings.clearAngle))
     }
 
     private func applyAppearance() {
-        if model.documentationPreview != nil { NSApp.appearance = NSAppearance(named: .aqua); return }
-        NSApp.appearance = appearance == "dark" ? NSAppearance(named: .darkAqua) : appearance == "light" ? NSAppearance(named: .aqua) : nil
+        if model.documentationPreview != nil {
+            NSApp.appearance = NSAppearance(named: .aqua)
+            return
+        }
+        NSApp.appearance =
+            appearance == "dark"
+            ? NSAppearance(named: .darkAqua) : appearance == "light" ? NSAppearance(named: .aqua) : nil
     }
 }
 
@@ -186,14 +225,18 @@ struct TuningSlider: View {
     var range: ClosedRange<Double> = 0...1
     var display: String? = nil
     init(_ title: String, value: Binding<Double>, range: ClosedRange<Double> = 0...1, display: String? = nil) {
-        self.title = title; self._value = value; self.range = range; self.display = display
+        self.title = title
+        self._value = value
+        self.range = range
+        self.display = display
     }
     var body: some View {
         HStack(spacing: 10) {
             Text(title).frame(width: 70, alignment: .leading)
             Slider(value: $value, in: range).accessibilityLabel(title)
             Text(display ?? "\(Int(value * 100))%")
-                .font(.system(size: 12).monospacedDigit()).foregroundStyle(.secondary).frame(width: 39, alignment: .trailing)
+                .font(.system(size: 12).monospacedDigit()).foregroundStyle(.secondary).frame(
+                    width: 39, alignment: .trailing)
         }
     }
 }
@@ -211,16 +254,21 @@ private struct AdvancedTuningView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Motion & shading").fontWeight(.semibold)
                 TuningSlider("Fold depth", value: $model.settings.perspective).disabled(model.settings.style == .frost)
-                if model.settings.style == .frost { Text("Frost keeps the screen flat. Choose Duo or Quiet to fold.").font(.caption).foregroundStyle(.secondary) }
+                if model.settings.style == .frost {
+                    Text("Frost keeps the screen flat. Choose Duo or Quiet to fold.").font(.caption).foregroundStyle(
+                        .secondary)
+                }
                 TuningSlider("Shadow", value: $model.settings.shadow)
-                TuningSlider("Smoothing", value: $model.settings.response, range: 0.025...0.18,
-                             display: "\(Int(model.settings.response * 1_000)) ms")
+                TuningSlider(
+                    "Smoothing", value: $model.settings.response, range: 0.025...0.18,
+                    display: "\(Int(model.settings.response * 1_000)) ms")
                 Picker("Frame rate", selection: $model.settings.frameRateMode) {
                     ForEach(FrameRateMode.allCases, id: \.self) { mode in
                         Text(mode.title).tag(mode)
                     }
                 }.pickerStyle(.segmented)
-                Text("Automatic follows your display, up to 120 fps, and adapts to graphics load.").font(.caption).foregroundStyle(.secondary)
+                Text("Automatic follows your display, up to 120 fps, and adapts to graphics load.").font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Divider()
             VStack(alignment: .leading, spacing: 12) {
@@ -233,10 +281,16 @@ private struct AdvancedTuningView: View {
             }
             Divider()
             HStack {
-                Button("Reset blur & glow") { beforeReset = model.settings; model.resetAppearance() }
+                Button("Reset blur & glow") {
+                    beforeReset = model.settings
+                    model.resetAppearance()
+                }
                 Spacer()
                 if let saved = beforeReset {
-                    Button("Undo reset") { model.restoreAppearance(from: saved); beforeReset = nil }
+                    Button("Undo reset") {
+                        model.restoreAppearance(from: saved)
+                        beforeReset = nil
+                    }
                 }
             }
         }.font(.system(size: 13)).padding(20).frame(width: 360)
@@ -257,40 +311,58 @@ private struct PreferencesView: View {
             Form {
                 Section("Access") {
                     LabeledContent("Lid sensor") {
-                        Label(model.sensorConnected ? "Connected" : model.sensorState == .searching ? "Searching…" : "Preview only", systemImage: model.sensorConnected ? "checkmark.circle.fill" : "exclamationmark.circle")
-                            .foregroundStyle(model.sensorConnected ? Color.green : Color.secondary)
+                        Label(
+                            model.sensorConnected
+                                ? "Connected" : model.sensorState == .searching ? "Searching…" : "Preview only",
+                            systemImage: model.sensorConnected ? "checkmark.circle.fill" : "exclamationmark.circle"
+                        )
+                        .foregroundStyle(model.sensorConnected ? Color.green : Color.secondary)
                     }
                     LabeledContent("Screen Recording") {
                         if model.hasScreenAccess {
                             Label("Allowed", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
                         } else {
-                            Button(model.checkingScreenAccess ? "Checking…" : "Allow access") { model.requestScreenAccess() }.disabled(model.checkingScreenAccess)
+                            Button(model.checkingScreenAccess ? "Checking…" : "Allow access") {
+                                model.requestScreenAccess()
+                            }.disabled(model.checkingScreenAccess)
                         }
                     }
                     if !model.hasScreenAccess {
-                        Text("Enable DuoLid in Screen Recording, then relaunch if macOS asks.").font(.caption).foregroundStyle(.secondary)
+                        Text("Enable DuoLid in Screen Recording, then relaunch if macOS asks.").font(.caption)
+                            .foregroundStyle(.secondary)
                         HStack {
                             Button("Check access") { model.requestScreenAccess() }
                             Button("Relaunch DuoLid") { model.relaunch() }
                         }
                     }
                     LabeledContent("Desktop capture", value: model.capturePhase.rawValue.capitalized)
-                    LabeledContent("Graphics", value: model.settingsOnly ? "Stopped by launch option" : model.graphicsFailed ? "Paused after an error" : "Ready to prepare")
+                    LabeledContent(
+                        "Graphics",
+                        value: model.settingsOnly
+                            ? "Stopped by launch option"
+                            : model.graphicsFailed ? "Paused after an error" : "Ready to prepare")
                     if model.needsRecovery || model.capturePhase == .failed || model.graphicsFailed {
                         Button("Retry effect") { model.retryGraphics() }.disabled(model.settingsOnly)
                     }
                     if !model.sensorConnected {
-                        Text("Automatic effects need a compatible lid-angle sensor. The sample preview works without one.")
-                            .font(.caption).foregroundStyle(.secondary)
+                        Text(
+                            "Automatic effects need a compatible lid-angle sensor. The sample preview works without one."
+                        )
+                        .font(.caption).foregroundStyle(.secondary)
                     }
                     Button("Copy diagnostics") { model.copyDiagnostics() }
                     Button("Open Screen Recording settings…") { model.openScreenSettings() }
-                    Text("Screen frames stay on this Mac and are never saved.").font(.caption).foregroundStyle(.secondary)
+                    Text("Screen frames stay on this Mac and are never saved.").font(.caption).foregroundStyle(
+                        .secondary)
                 }
                 Section("General") {
-                    Toggle("Launch at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
+                    Toggle(
+                        "Launch at login",
+                        isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
                     Picker("Appearance", selection: $appearance) {
-                        Text("System").tag("system"); Text("Light").tag("light"); Text("Dark").tag("dark")
+                        Text("System").tag("system")
+                        Text("Light").tag("light")
+                        Text("Dark").tag("dark")
                     }.pickerStyle(.segmented)
                     Toggle("Respect Reduce Motion", isOn: $model.settings.respectReduceMotion)
                     Toggle("Use 30 fps in Low Power Mode", isOn: $model.settings.batterySaver)
@@ -314,11 +386,18 @@ struct DuoToolbar: View {
         HStack(spacing: 20) {
             HStack(spacing: 8) {
                 Text(model.settings.enabled ? "DuoLid is on" : "DuoLid is paused").font(.system(size: 12))
-                Toggle("Enable DuoLid", isOn: $model.settings.enabled).labelsHidden().toggleStyle(.switch).controlSize(.small)
-                    .accessibilityLabel("Enable DuoLid").help("Pause or resume DuoLid (⌃⌥⌘D)")
+                Toggle("Enable DuoLid", isOn: $model.settings.enabled).labelsHidden().toggleStyle(.switch).controlSize(
+                    .small
+                )
+                .accessibilityLabel("Enable DuoLid").help("Pause or resume DuoLid (⌃⌥⌘D)")
             }
-            Button { model.showingPreferences = true } label: {
-                HStack(spacing: 5) { Image(systemName: "gearshape"); Text("Settings") }
+            Button {
+                model.showingPreferences = true
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "gearshape")
+                    Text("Settings")
+                }
             }.help("Settings (⌘,)")
         }
         .padding(.horizontal, 14)
@@ -341,8 +420,11 @@ private struct UpdatePreferences: View {
                 Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Development")
                     .foregroundStyle(.secondary)
             }
-            Text(updater.configurationError ?? "Checks contact GitHub. Installation always asks you; screen content stays on your Mac.")
-                .font(.caption).foregroundStyle(.secondary)
+            Text(
+                updater.configurationError
+                    ?? "Checks contact GitHub. Installation always asks you; screen content stays on your Mac."
+            )
+            .font(.caption).foregroundStyle(.secondary)
         }
     }
 }

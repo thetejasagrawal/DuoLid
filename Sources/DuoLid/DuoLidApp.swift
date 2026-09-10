@@ -1,8 +1,8 @@
 import AppKit
-import SwiftUI
 import Carbon
-import MetalKit
 import DuoLidCore
+import MetalKit
+import SwiftUI
 
 @main
 enum DuoLidApp {
@@ -10,19 +10,25 @@ enum DuoLidApp {
     static func main() {
         if CommandLine.arguments.contains("--export-demo") {
             _ = NSApplication.shared
-            do { try DemoExport.run() }
-            catch { fputs("Demo export failed: \(error.localizedDescription)\n", stderr); exit(1) }
+            do { try DemoExport.run() } catch {
+                fputs("Demo export failed: \(error.localizedDescription)\n", stderr)
+                exit(1)
+            }
             return
         }
         if CommandLine.arguments.contains("--presentation-check") {
-            do { try PresentationVerification.run() }
-            catch { fputs("Presentation check failed: \(error.localizedDescription)\n", stderr); exit(1) }
+            do { try PresentationVerification.run() } catch {
+                fputs("Presentation check failed: \(error.localizedDescription)\n", stderr)
+                exit(1)
+            }
             return
         }
         if CommandLine.arguments.contains("--render-check") {
             _ = NSApplication.shared
-            do { try RenderVerification.run() }
-            catch { fputs("Render verification failed: \(error.localizedDescription)\n", stderr); exit(1) }
+            do { try RenderVerification.run() } catch {
+                fputs("Render verification failed: \(error.localizedDescription)\n", stderr)
+                exit(1)
+            }
             return
         }
         if CommandLine.arguments.contains("--diagnose") {
@@ -57,17 +63,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
         model.effectDidChange = { [weak self] active in self?.hotKeys?.setEscapeEnabled(active) }
         model.start()
         refreshStatus()
-        let launchedAtLogin = NSAppleEventManager.shared().currentAppleEvent?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+        let launchedAtLogin =
+            NSAppleEventManager.shared().currentAppleEvent?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue
+            == keyAELaunchedAsLogInItem
         if !launchedAtLogin { showSettings() }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        showSettings(); return true
+        showSettings()
+        return true
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         hotKeys?.stop()
-        Task { await model.shutdown(); sender.reply(toApplicationShouldTerminate: true) }
+        Task {
+            await model.shutdown()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
         return .terminateLater
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -77,14 +89,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
         let appItem = NSMenuItem()
         let appMenu = NSMenu(title: "DuoLid")
         appMenu.addItem(withTitle: "About DuoLid", action: #selector(showAbout), keyEquivalent: "")
-        let update = appMenu.addItem(withTitle: "Check for Updates…", action: #selector(checkUpdates), keyEquivalent: "")
+        let update = appMenu.addItem(
+            withTitle: "Check for Updates…", action: #selector(checkUpdates), keyEquivalent: "")
         update.target = self
         appMenu.addItem(.separator())
-        let preferences = appMenu.addItem(withTitle: "Settings…", action: #selector(openPreferences), keyEquivalent: ",")
+        let preferences = appMenu.addItem(
+            withTitle: "Settings…", action: #selector(openPreferences), keyEquivalent: ",")
         preferences.target = self
-        let preview = appMenu.addItem(withTitle: "Preview on Desktop", action: #selector(previewDesktop), keyEquivalent: "p")
+        let preview = appMenu.addItem(
+            withTitle: "Preview on Desktop", action: #selector(previewDesktop), keyEquivalent: "p")
         preview.target = self
-        let play = appMenu.addItem(withTitle: "Play Opening Sound", action: #selector(playOpeningSound), keyEquivalent: "p")
+        let play = appMenu.addItem(
+            withTitle: "Play Opening Sound", action: #selector(playOpeningSound), keyEquivalent: "p")
         play.keyEquivalentModifierMask = [.command, .shift]
         play.target = self
         appMenu.addItem(.separator())
@@ -102,16 +118,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
         menu.addItem(editItem)
         let viewItem = NSMenuItem()
         let viewMenu = NSMenu(title: "View")
-        let animate = viewMenu.addItem(withTitle: "Animate Preview", action: #selector(previewEffect), keyEquivalent: "p")
-        animate.keyEquivalentModifierMask = [.command, .option]; animate.target = self
+        let animate = viewMenu.addItem(
+            withTitle: "Animate Preview", action: #selector(previewEffect), keyEquivalent: "p")
+        animate.keyEquivalentModifierMask = [.command, .option]
+        animate.target = self
         let tuning = viewMenu.addItem(withTitle: "More Tuning…", action: #selector(showAdvanced), keyEquivalent: "t")
-        tuning.keyEquivalentModifierMask = [.command, .shift]; tuning.target = self
+        tuning.keyEquivalentModifierMask = [.command, .shift]
+        tuning.target = self
         viewItem.submenu = viewMenu
         menu.addItem(viewItem)
         let windowItem = NSMenuItem()
         let windowMenu = NSMenu(title: "Window")
         windowMenu.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowMenu.addItem(
+            withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowItem.submenu = windowMenu
         menu.addItem(windowItem)
         NSApp.mainMenu = menu
@@ -150,8 +170,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
 
     func showSettings() {
         if window == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
-                                  styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
+                styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered,
+                defer: false)
             window.title = "DuoLid"
             window.titleVisibility = .visible
             window.titlebarAppearsTransparent = true
@@ -188,22 +210,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
     @objc private func checkUpdates() { model.updater.checkForUpdates() }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(checkUpdates) { return model.updater.canCheck }
-        if menuItem.action == #selector(previewDesktop) || menuItem.action == #selector(previewEffect) { return !model.settingsOnly }
+        if menuItem.action == #selector(previewDesktop) || menuItem.action == #selector(previewEffect) {
+            return !model.settingsOnly
+        }
         return true
     }
 
     @objc private func openSettings() { showSettings() }
-    @objc private func openPreferences() { showSettings(); model.showingPreferences = true }
+    @objc private func openPreferences() {
+        showSettings()
+        model.showingPreferences = true
+    }
     @objc private func previewDesktop() { model.playPreview(onDesktop: true) }
     @objc private func playOpeningSound() { model.playSound() }
-    @objc private func showAdvanced() { showSettings(); model.showingAdvanced = true }
+    @objc private func showAdvanced() {
+        showSettings()
+        model.showingAdvanced = true
+    }
     @objc private func togglePause() { model.settings.enabled.toggle() }
     @objc private func toggleGlow() { model.settings.glowEnabled.toggle() }
-    @objc private func previewEffect() { showSettings(); model.playPreview() }
+    @objc private func previewEffect() {
+        showSettings()
+        model.playPreview()
+    }
 
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { [.flexibleSpace, .init("DuoLid.Controls")] }
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarAllowedItemIdentifiers(toolbar) }
-    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [.flexibleSpace, .init("DuoLid.Controls")]
+    }
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        toolbarAllowedItemIdentifiers(toolbar)
+    }
+    func toolbar(
+        _ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
+        willBeInsertedIntoToolbar flag: Bool
+    ) -> NSToolbarItem? {
         guard identifier.rawValue == "DuoLid.Controls" else { return nil }
         let item = NSToolbarItem(itemIdentifier: identifier)
         let controls = NSHostingView(rootView: DuoToolbar(model: model))
@@ -216,7 +256,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTo
         return item
     }
     @objc private func showAbout() {
-        NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "DuoLid", .applicationVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Development", .credits: NSAttributedString(string: "A softer landing for your MacBook.\nNative blur, optional corner glow, and an original magnetic click.")])
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationName: "DuoLid",
+            .applicationVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+                ?? "Development",
+            .credits: NSAttributedString(
+                string:
+                    "A softer landing for your MacBook.\nNative blur, optional corner glow, and an original magnetic click."
+            ),
+        ])
     }
 }
 
@@ -232,19 +280,27 @@ private final class HotKeys {
         self.action = action
         var type = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         let context = Unmanaged.passUnretained(self).toOpaque()
-        InstallEventHandler(GetApplicationEventTarget(), { _, _, context in
-            guard let context else { return noErr }
-            MainActor.assumeIsolated { Unmanaged<HotKeys>.fromOpaque(context).takeUnretainedValue().action() }
-            return noErr
-        }, 1, &type, context, &handler)
+        InstallEventHandler(
+            GetApplicationEventTarget(),
+            { _, _, context in
+                guard let context else { return noErr }
+                MainActor.assumeIsolated { Unmanaged<HotKeys>.fromOpaque(context).takeUnretainedValue().action() }
+                return noErr
+            }, 1, &type, context, &handler)
         // Avoid macOS's default Option-Command-D Dock shortcut.
-        RegisterEventHotKey(UInt32(kVK_ANSI_D), UInt32(controlKey | optionKey | cmdKey), EventHotKeyID(signature: 0x44554F4C, id: 1), GetApplicationEventTarget(), 0, &pauseKey)
+        RegisterEventHotKey(
+            UInt32(kVK_ANSI_D), UInt32(controlKey | optionKey | cmdKey), EventHotKeyID(signature: 0x4455_4F4C, id: 1),
+            GetApplicationEventTarget(), 0, &pauseKey)
     }
 
     func setEscapeEnabled(_ enabled: Bool) {
         if enabled && escapeKey == nil {
-            let result = RegisterEventHotKey(UInt32(kVK_Escape), 0, EventHotKeyID(signature: 0x44554F4C, id: 2), GetApplicationEventTarget(), 0, &escapeKey)
-            if result != noErr { onError?("Esc is reserved by another app. Pause DuoLid from the menu bar or with ⌃⌥⌘D.") }
+            let result = RegisterEventHotKey(
+                UInt32(kVK_Escape), 0, EventHotKeyID(signature: 0x4455_4F4C, id: 2), GetApplicationEventTarget(), 0,
+                &escapeKey)
+            if result != noErr {
+                onError?("Esc is reserved by another app. Pause DuoLid from the menu bar or with ⌃⌥⌘D.")
+            }
         } else if !enabled, let escapeKey {
             UnregisterEventHotKey(escapeKey)
             self.escapeKey = nil
@@ -255,6 +311,8 @@ private final class HotKeys {
         if let pauseKey { UnregisterEventHotKey(pauseKey) }
         if let escapeKey { UnregisterEventHotKey(escapeKey) }
         if let handler { RemoveEventHandler(handler) }
-        pauseKey = nil; escapeKey = nil; handler = nil
+        pauseKey = nil
+        escapeKey = nil
+        handler = nil
     }
 }

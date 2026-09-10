@@ -1,18 +1,19 @@
 import AppKit
-import MetalKit
 import DuoLidCore
+import MetalKit
 
 @MainActor
 enum Diagnostics {
     static func baseReport(checkGraphics: Bool = true) -> CapabilityReport {
         var report = CapabilityReport()
-        report.version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "development"
+        report.version =
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "development"
         report.build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "development"
         report.system = ProcessInfo.processInfo.operatingSystemVersionString
         #if arch(arm64)
-        report.architecture = "arm64"
+            report.architecture = "arm64"
         #else
-        report.architecture = "x86_64"
+            report.architecture = "x86_64"
         #endif
         var size = 0
         if sysctlbyname("hw.model", nil, &size, nil, 0) == 0, size > 0 {
@@ -24,8 +25,13 @@ enum Diagnostics {
         report.screenRecording = CGPreflightScreenCaptureAccess() ? .available : .permissionRequired
         report.builtInDisplayActive = DesktopEffect.builtInScreen != nil
         if checkGraphics {
-        do { _ = try MetalRenderer(frames: CapturedFrame()); report.graphics = .available }
-        catch { report.graphics = .failed; report.graphicsError = "initialization_failed" }
+            do {
+                _ = try MetalRenderer(frames: CapturedFrame())
+                report.graphics = .available
+            } catch {
+                report.graphics = .failed
+                report.graphicsError = "initialization_failed"
+            }
         }
         return report
     }
@@ -48,7 +54,8 @@ enum Diagnostics {
         let deadline = Date().addingTimeInterval(1)
         while Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
         sensor.stop()
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         if let data = try? encoder.encode(collector.report) {
             FileHandle.standardOutput.write(data)
             FileHandle.standardOutput.write(Data("\n".utf8))

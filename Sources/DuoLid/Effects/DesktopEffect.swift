@@ -1,7 +1,7 @@
 import AppKit
-import ScreenCaptureKit
-import MetalKit
 import DuoLidCore
+import MetalKit
+import ScreenCaptureKit
 
 private final class EffectPanel: NSPanel {
     override var canBecomeKey: Bool { false }
@@ -20,10 +20,12 @@ final class StreamReceiver: NSObject, SCStreamOutput, SCStreamDelegate, @uncheck
     init(frames: CapturedFrame) { self.frames = frames }
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .screen, sampleBuffer.isValid,
-              let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
-              let status = attachments.first?[.status] as? Int,
-              status == SCFrameStatus.complete.rawValue,
-              let buffer = sampleBuffer.imageBuffer else { return }
+            let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false)
+                as? [[SCStreamFrameInfo: Any]],
+            let status = attachments.first?[.status] as? Int,
+            status == SCFrameStatus.complete.rawValue,
+            let buffer = sampleBuffer.imageBuffer
+        else { return }
         frames.set(buffer)
     }
     func stream(_ stream: SCStream, didStopWithError error: Error) { onError?(error.localizedDescription) }
@@ -73,7 +75,9 @@ final class DesktopEffect {
     private var preparationGate = CapturePreparationGate()
 
     init(liveAngle: LatestLidSample? = nil, defaults: UserDefaults = .standard, settingsOnly: Bool = false) {
-        self.liveAngle = liveAngle; self.defaults = defaults; self.settingsOnly = settingsOnly
+        self.liveAngle = liveAngle
+        self.defaults = defaults
+        self.settingsOnly = settingsOnly
         failureLatched = defaults.bool(forKey: "DuoLid.renderSessionInterrupted")
     }
 
@@ -91,7 +95,8 @@ final class DesktopEffect {
     static var builtInScreen: NSScreen? {
         NSScreen.screens.first {
             guard let id = $0.displayID else { return false }
-            return CGDisplayIsBuiltin(id) != 0 && CGDisplayIsActive(id) != 0 && CGDisplayMirrorsDisplay(id) == kCGNullDirectDisplay
+            return CGDisplayIsBuiltin(id) != 0 && CGDisplayIsActive(id) != 0
+                && CGDisplayMirrorsDisplay(id) == kCGNullDirectDisplay
         }
     }
 
@@ -99,23 +104,32 @@ final class DesktopEffect {
         self.useLiveAngle = useLiveAngle
         self.settings = settings
         targetAngle = angle
-        renderer?.update(angle: angle, settings: settings,
-                         reduceMotion: settings.respectReduceMotion && NSWorkspace.shared.accessibilityDisplayShouldReduceMotion, useLiveAngle: useLiveAngle)
-        let enabled = allowed && Self.builtInScreen != nil && !settingsOnly && !failureLatched && settings.enabled && settings.blurEnabled
+        renderer?.update(
+            angle: angle, settings: settings,
+            reduceMotion: settings.respectReduceMotion && NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+            useLiveAngle: useLiveAngle)
+        let enabled =
+            allowed && Self.builtInScreen != nil && !settingsOnly && !failureLatched && settings.enabled
+            && settings.blurEnabled
         updateCadence()
         displayWanted = captureGate.update(angle: angle, clearAngle: settings.clearAngle, enabled: enabled)
-        let preparing = preparationGate.update(angle: angle, startAngle: settings.clearAngle, enabled: enabled,
-                                               at: ProcessInfo.processInfo.systemUptime)
+        let preparing = preparationGate.update(
+            angle: angle, startAngle: settings.clearAngle, enabled: enabled,
+            at: ProcessInfo.processInfo.systemUptime)
         let wanted = displayWanted || preparing
         shouldRun = wanted
         if displayWanted && frameReady { presentOverlay() }
         if wanted {
-            if stream == nil, startTask == nil, cleanupTask == nil, ProcessInfo.processInfo.systemUptime - lastFailure > 8 {
+            if stream == nil, startTask == nil, cleanupTask == nil,
+                ProcessInfo.processInfo.systemUptime - lastFailure > 8
+            {
                 generation += 1
                 let token = generation
                 startTask = Task { [weak self] in await self?.start(token: token) }
             }
-        } else if stream != nil || startTask != nil { stop() }
+        } else if stream != nil || startTask != nil {
+            stop()
+        }
     }
 
     private func start(token: Int) async {
@@ -126,8 +140,11 @@ final class DesktopEffect {
             // A retiring stream can still deliver a final frame; isolate each session.
             let frames = CapturedFrame(source: .live)
             self.frames = frames
-            let renderer = try MetalRenderer(frames: frames, device: CGDirectDisplayCopyCurrentMetalDevice(displayID), liveAngle: liveAngle)
-            let panel = EffectPanel(contentRect: screen.frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            let renderer = try MetalRenderer(
+                frames: frames, device: CGDirectDisplayCopyCurrentMetalDevice(displayID), liveAngle: liveAngle)
+            let panel = EffectPanel(
+                contentRect: screen.frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered,
+                defer: false)
             panel.title = "DuoLid Effect"
             panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.statusWindow)) + 1)
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
@@ -150,10 +167,13 @@ final class DesktopEffect {
             layer.displaySyncEnabled = true
             layer.presentsWithTransaction = false
             layer.contentsScale = screen.backingScaleFactor
-            layer.drawableSize = CGSize(width: screen.frame.width * screen.backingScaleFactor,
-                                        height: screen.frame.height * screen.backingScaleFactor)
+            layer.drawableSize = CGSize(
+                width: screen.frame.width * screen.backingScaleFactor,
+                height: screen.frame.height * screen.backingScaleFactor)
             layer.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
-            let fps = settings.frameRateMode.targetFPS(maximum: screen.maximumFramesPerSecond, lowPower: settings.batterySaver && ProcessInfo.processInfo.isLowPowerModeEnabled)
+            let fps = settings.frameRateMode.targetFPS(
+                maximum: screen.maximumFramesPerSecond,
+                lowPower: settings.batterySaver && ProcessInfo.processInfo.isLowPowerModeEnabled)
             view.autoresizingMask = [.width, .height]
             panel.contentView = view
             // Make the overlay known to WindowServer before the capture exclusion is constructed.
@@ -162,12 +182,15 @@ final class DesktopEffect {
             self.view = view
             self.renderer = renderer
             renderer.backingScale = screen.backingScaleFactor
-            renderer.update(angle: targetAngle, settings: settings,
-                            reduceMotion: settings.respectReduceMotion && NSWorkspace.shared.accessibilityDisplayShouldReduceMotion, useLiveAngle: useLiveAngle)
+            renderer.update(
+                angle: targetAngle, settings: settings,
+                reduceMotion: settings.respectReduceMotion && NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+                useLiveAngle: useLiveAngle)
             renderer.onPresent = { [weak self] in
                 guard self?.generation == token else { return }
                 self?.frameReady = true
-                self?.firstFrameTask?.cancel(); self?.firstFrameTask = nil
+                self?.firstFrameTask?.cancel()
+                self?.firstFrameTask = nil
                 self?.presentOverlay()
             }
             renderer.onFailure = { [weak self] message in
@@ -177,7 +200,8 @@ final class DesktopEffect {
             }
             requestedFPS = fps
             requestedAutomatic = settings.frameRateMode == .automatic
-            let loop = DisplayRenderLoop(renderer: renderer, layer: layer, screen: screen, fps: fps,
+            let loop = DisplayRenderLoop(
+                renderer: renderer, layer: layer, screen: screen, fps: fps,
                 automatic: settings.frameRateMode == .automatic,
                 onCadenceChange: { [weak self] rate in
                     guard self?.generation == token else { return }
@@ -187,14 +211,17 @@ final class DesktopEffect {
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
             guard token == generation, !Task.isCancelled, shouldRun else { return }
             guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
-                throw NSError(domain: "DuoLid", code: 1, userInfo: [NSLocalizedDescriptionKey: "The built-in display is unavailable."])
+                throw NSError(
+                    domain: "DuoLid", code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: "The built-in display is unavailable."])
             }
             let ownApps = content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }
             // Retain the settings window in the image while always excluding all overlays.
             let settingsWindows = content.windows.filter {
                 $0.owningApplication?.processID == ProcessInfo.processInfo.processIdentifier && $0.title == "DuoLid"
             }
-            let filter = SCContentFilter(display: display, excludingApplications: ownApps, exceptingWindows: settingsWindows)
+            let filter = SCContentFilter(
+                display: display, excludingApplications: ownApps, exceptingWindows: settingsWindows)
             if #available(macOS 14.2, *) { filter.includeMenuBar = true }
             let configuration = SCStreamConfiguration()
             // CGDisplayPixelsWide can report logical pixels in a Retina display mode.
@@ -217,7 +244,9 @@ final class DesktopEffect {
                 }
             }
             let stream = SCStream(filter: filter, configuration: configuration, delegate: receiver)
-            try stream.addStreamOutput(receiver, type: .screen, sampleHandlerQueue: DispatchQueue(label: "app.duolid.frames", qos: .userInteractive))
+            try stream.addStreamOutput(
+                receiver, type: .screen,
+                sampleHandlerQueue: DispatchQueue(label: "app.duolid.frames", qos: .userInteractive))
             self.configuration = configuration
             self.receiver = receiver
             self.stream = stream
@@ -235,7 +264,9 @@ final class DesktopEffect {
                     guard !Task.isCancelled, let self, self.generation == token else { return }
                     if renderer.statistics.isStalled(at: CACurrentMediaTime()) {
                         self.onGraphicsFailure?()
-                        self.fail("Graphics stopped responding. The effect has been paused. Restart DuoLid before testing again.")
+                        self.fail(
+                            "Graphics stopped responding. The effect has been paused. Restart DuoLid before testing again."
+                        )
                         return
                     }
                 }
@@ -247,7 +278,11 @@ final class DesktopEffect {
             }
         } catch {
             guard token == generation, !Task.isCancelled else { return }
-            if (error as NSError).domain == SCStreamErrorDomain && (error as NSError).code == SCStreamError.Code.userDeclined.rawValue { onPermissionDenied?() }
+            if (error as NSError).domain == SCStreamErrorDomain
+                && (error as NSError).code == SCStreamError.Code.userDeclined.rawValue
+            {
+                onPermissionDenied?()
+            }
             if error is RenderError { onGraphicsFailure?() }
             fail(error.localizedDescription)
         }
@@ -259,7 +294,8 @@ final class DesktopEffect {
         panel?.alphaValue = 1
         RenderLog.logger.notice("First desktop frame presented")
         isActive = true
-        firstFrameTask?.cancel(); firstFrameTask = nil
+        firstFrameTask?.cancel()
+        firstFrameTask = nil
         onActiveChanged?(true)
     }
 
@@ -273,11 +309,13 @@ final class DesktopEffect {
 
     private func updateCadence() {
         guard let screen = Self.builtInScreen else { return }
-        let rate = settings.frameRateMode.targetFPS(maximum: screen.maximumFramesPerSecond,
+        let rate = settings.frameRateMode.targetFPS(
+            maximum: screen.maximumFramesPerSecond,
             lowPower: settings.batterySaver && ProcessInfo.processInfo.isLowPowerModeEnabled)
         let automatic = settings.frameRateMode == .automatic
         guard rate != requestedFPS || automatic != requestedAutomatic else { return }
-        requestedFPS = rate; requestedAutomatic = automatic
+        requestedFPS = rate
+        requestedAutomatic = automatic
         renderLoop?.setFrameRate(rate, automatic: settings.frameRateMode == .automatic)
         setCaptureCadence(rate)
     }
@@ -290,8 +328,11 @@ final class DesktopEffect {
         cadenceTask = Task { [weak self] in
             await previous?.value
             guard !Task.isCancelled else { return }
-            do { try await stream.updateConfiguration(configuration) }
-            catch { if !Task.isCancelled && self?.generation == token { self?.fail("Capture frame rate could not be changed: \(error.localizedDescription)") } }
+            do { try await stream.updateConfiguration(configuration) } catch {
+                if !Task.isCancelled && self?.generation == token {
+                    self?.fail("Capture frame rate could not be changed: \(error.localizedDescription)")
+                }
+            }
         }
     }
 
@@ -299,18 +340,30 @@ final class DesktopEffect {
         generation += 1
         shouldRun = false
         let startup = startTask
-        startup?.cancel(); startTask = nil
-        firstFrameTask?.cancel(); firstFrameTask = nil
-        healthTask?.cancel(); healthTask = nil
+        startup?.cancel()
+        startTask = nil
+        firstFrameTask?.cancel()
+        firstFrameTask = nil
+        healthTask?.cancel()
+        healthTask = nil
         let cadence = cadenceTask
-        cadence?.cancel(); cadenceTask = nil
+        cadence?.cancel()
+        cadenceTask = nil
         let oldLoop = renderLoop
-        oldLoop?.stop(); renderLoop = nil
+        oldLoop?.stop()
+        renderLoop = nil
         let oldPanel = panel
         oldPanel?.orderOut(nil)
-        let oldStream = stream, oldReceiver = receiver, oldRenderer = renderer
+        let oldStream = stream
+        let oldReceiver = receiver
+        let oldRenderer = renderer
         let oldFrames = frames
-        panel = nil; view = nil; renderer = nil; stream = nil; receiver = nil; configuration = nil
+        panel = nil
+        view = nil
+        renderer = nil
+        stream = nil
+        receiver = nil
+        configuration = nil
         requestedFPS = 0
         if oldPanel != nil || oldStream != nil || startup != nil {
             if !failureLatched { onCaptureChanged?(.stopping) }
@@ -329,7 +382,9 @@ final class DesktopEffect {
                 withExtendedLifetime(oldRenderer) {}
                 if drained {
                     oldPanel?.close()
-                    if self?.failureLatched == false { self?.defaults.set(false, forKey: "DuoLid.renderSessionInterrupted") }
+                    if self?.failureLatched == false {
+                        self?.defaults.set(false, forKey: "DuoLid.renderSessionInterrupted")
+                    }
                 } else {
                     self?.failureLatched = true
                     self?.quarantinedSurface = oldPanel
@@ -339,15 +394,26 @@ final class DesktopEffect {
                 if self?.failureLatched == false { self?.onCaptureChanged?(.idle) }
             }
         }
-        hasPresented = false; frameReady = false; displayWanted = false
-        captureGate.reset(); preparationGate.reset()
-        if isActive { isActive = false; onActiveChanged?(false) }
+        hasPresented = false
+        frameReady = false
+        displayWanted = false
+        captureGate.reset()
+        preparationGate.reset()
+        if isActive {
+            isActive = false
+            onActiveChanged?(false)
+        }
     }
 
-    func stopAndWait() async { stop(); await cleanupTask?.value }
+    func stopAndWait() async {
+        stop()
+        await cleanupTask?.value
+    }
 
 }
 
 extension NSScreen {
-    var displayID: CGDirectDisplayID? { (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value }
+    var displayID: CGDirectDisplayID? {
+        (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
+    }
 }

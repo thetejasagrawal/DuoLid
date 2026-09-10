@@ -1,8 +1,8 @@
 import AppKit
-import SwiftUI
-import ServiceManagement
-import ScreenCaptureKit
 import DuoLidCore
+import ScreenCaptureKit
+import ServiceManagement
+import SwiftUI
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -53,14 +53,18 @@ final class AppModel: ObservableObject {
         let args = CommandLine.arguments
         if let index = args.firstIndex(of: "--documentation-preview"), args.indices.contains(index + 1) {
             documentationPreview = NSImage(contentsOfFile: args[index + 1])
-        } else { documentationPreview = nil }
+        } else {
+            documentationPreview = nil
+        }
         self.settingsOnly = settingsOnly || args.contains("--documentation-preview")
         effect = DesktopEffect(liveAngle: sensor.samples, defaults: defaults, settingsOnly: self.settingsOnly)
         self.defaults = defaults
         needsRecovery = effect.failureLatched
         var loaded = DuoSettings.load(from: defaults.data(forKey: "DuoLid.settings.v1"))
         if documentationPreview != nil {
-            loaded = DuoSettings(); loaded.glowEnabled = true; loaded.edgeBleed = 0.8
+            loaded = DuoSettings()
+            loaded.glowEnabled = true
+            loaded.edgeBleed = 0.8
         }
         settings = loaded
         previewAngle = documentationPreview == nil ? 6 + (settings.clearAngle - 6) * 0.46 : 27
@@ -72,7 +76,10 @@ final class AppModel: ObservableObject {
     var displayAngle: Double { followLid ? (angle ?? previewAngle) : previewAngle }
     var previewProgress: Double { LidMath.progress(angle: displayAngle, clearAngle: settings.clearAngle) }
     var sensorConnected: Bool { sensorState == .connected }
-    var ready: Bool { !settingsOnly && DesktopEffect.builtInScreen != nil && !effect.failureLatched && sensorConnected && hasScreenAccess && settings.enabled }
+    var ready: Bool {
+        !settingsOnly && DesktopEffect.builtInScreen != nil && !effect.failureLatched && sensorConnected
+            && hasScreenAccess && settings.enabled
+    }
     var statusTitle: String {
         if documentationPreview != nil { return "Documentation preview · synthetic screen content" }
         if settingsOnly { return "Settings only · effects stopped" }
@@ -89,7 +96,10 @@ final class AppModel: ObservableObject {
         guard !started else { return }
         started = true
         if settingsOnly { updater.disableForReview() }
-        if documentationPreview != nil { sensorState = .unavailable; return }
+        if documentationPreview != nil {
+            sensorState = .unavailable
+            return
+        }
         updater.prepareForInstallation = { [weak self] in await self?.shutdown() }
         if !settingsOnly { updater.start() }
         let samples = sensor.samples
@@ -101,7 +111,11 @@ final class AppModel: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.sensorState = state
-                if state != .connected { self.angle = nil; self.currentAngle = nil; self.effect.stop() }
+                if state != .connected {
+                    self.angle = nil
+                    self.currentAngle = nil
+                    self.effect.stop()
+                }
                 self.statusDidChange?()
             }
         }
@@ -111,7 +125,8 @@ final class AppModel: ObservableObject {
             self?.statusDidChange?()
         }
         if effect.failureLatched {
-            message = "A previous graphics session did not finish safely. Automatic effects are paused. Open Settings to review and retry."
+            message =
+                "A previous graphics session did not finish safely. Automatic effects are paused. Open Settings to review and retry."
         }
         effect.onPermissionDenied = { [weak self] in
             self?.hasScreenAccess = false
@@ -134,18 +149,32 @@ final class AppModel: ObservableObject {
         observe(NSWorkspace.sessionDidBecomeActiveNotification) { [weak self] in self?.resume(.inactiveSession) }
         observe(NSWorkspace.screensDidSleepNotification) { [weak self] in self?.suspend(.displaySleeping) }
         observe(NSWorkspace.screensDidWakeNotification) { [weak self] in self?.resume(.displaySleeping) }
-        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.effect.stop(); self?.applyEffect() }
-        })
-        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.refreshPermissions()
-                if self?.permissionRequested == true && self?.hasScreenAccess == false { self?.verifyScreenAccess(openSettingsOnFailure: false) }
-            }
-        })
-        observers.append(NotificationCenter.default.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.applyEffect() }
-        })
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.effect.stop()
+                    self?.applyEffect()
+                }
+            })
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.refreshPermissions()
+                    if self?.permissionRequested == true && self?.hasScreenAccess == false {
+                        self?.verifyScreenAccess(openSettingsOnFailure: false)
+                    }
+                }
+            })
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.applyEffect() }
+            })
         permissionTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 if self?.hasScreenAccess == false { self?.refreshPermissions() }
@@ -155,9 +184,10 @@ final class AppModel: ObservableObject {
     }
 
     private func observe(_ name: Notification.Name, action: @escaping @MainActor @Sendable () -> Void) {
-        observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { action() }
-        })
+        observers.append(
+            NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { action() }
+            })
     }
 
     private func receive(_ newAngle: Double) {
@@ -165,10 +195,12 @@ final class AppModel: ObservableObject {
         currentAngle = newAngle
         let now = ProcessInfo.processInfo.systemUptime
         if angle == nil || now - lastReadoutTime >= 0.1 {
-            angle = newAngle; lastReadoutTime = now
+            angle = newAngle
+            lastReadoutTime = now
         }
         if !settingsOnly && settings.enabled && settings.soundEnabled && !desktopPreview {
-            if latch.update(angle: newAngle, clearAngle: settings.clearAngle, at: ProcessInfo.processInfo.systemUptime) {
+            if latch.update(angle: newAngle, clearAngle: settings.clearAngle, at: ProcessInfo.processInfo.systemUptime)
+            {
                 sound.play(settings.tone, volume: settings.volume)
             }
         }
@@ -176,18 +208,30 @@ final class AppModel: ObservableObject {
     }
 
     private func applyEffect() {
-        guard let angle = desktopPreview ? Optional(desktopPreviewAngle) : currentAngle else { effect.stop(); return }
-        effect.update(angle: angle, settings: settings,
-                      allowed: !settingsOnly && !suspended && hasScreenAccess && (sensorConnected || desktopPreview), useLiveAngle: !desktopPreview)
+        guard let angle = desktopPreview ? Optional(desktopPreviewAngle) : currentAngle else {
+            effect.stop()
+            return
+        }
+        effect.update(
+            angle: angle, settings: settings,
+            allowed: !settingsOnly && !suspended && hasScreenAccess && (sensorConnected || desktopPreview),
+            useLiveAngle: !desktopPreview)
     }
 
     private func saveAndApply(previous: DuoSettings) {
         if let data = try? JSONEncoder().encode(settings) { defaults.set(data, forKey: "DuoLid.settings.v1") }
-        if !previous.enabled && settings.enabled, effect.acknowledgeFailure() { needsRecovery = false; graphicsFailed = false }
-        if previous.enabled != settings.enabled || previous.soundEnabled != settings.soundEnabled || previous.clearAngle != settings.clearAngle {
+        if !previous.enabled && settings.enabled, effect.acknowledgeFailure() {
+            needsRecovery = false
+            graphicsFailed = false
+        }
+        if previous.enabled != settings.enabled || previous.soundEnabled != settings.soundEnabled
+            || previous.clearAngle != settings.clearAngle
+        {
             latch.reset()
         }
-        if previous.enabled != settings.enabled || previous.blurEnabled != settings.blurEnabled || previous.clearAngle != settings.clearAngle {
+        if previous.enabled != settings.enabled || previous.blurEnabled != settings.blurEnabled
+            || previous.clearAngle != settings.clearAngle
+        {
             sensor.configure(startAngle: settings.clearAngle, enabled: settings.enabled && settings.blurEnabled)
         }
         applyEffect()
@@ -198,7 +242,11 @@ final class AppModel: ObservableObject {
         let access = CGPreflightScreenCaptureAccess()
         // CoreGraphics is a hint. Never overwrite a successful ScreenCaptureKit
         // verification with a cached negative from this older preflight API.
-        if access && !hasScreenAccess { hasScreenAccess = true; applyEffect(); statusDidChange?() }
+        if access && !hasScreenAccess {
+            hasScreenAccess = true
+            applyEffect()
+            statusDidChange?()
+        }
         let login = SMAppService.mainApp.status == .enabled
         if login != launchAtLogin { launchAtLogin = login }
     }
@@ -214,7 +262,10 @@ final class AppModel: ObservableObject {
         checkingScreenAccess = true
         permissionTask = Task { [weak self] in
             guard let self else { return }
-            defer { self.checkingScreenAccess = false; self.permissionTask = nil }
+            defer {
+                self.checkingScreenAccess = false
+                self.permissionTask = nil
+            }
             do {
                 _ = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
                 guard !Task.isCancelled else { return }
@@ -224,12 +275,18 @@ final class AppModel: ObservableObject {
                 self.statusDidChange?()
             } catch {
                 guard !Task.isCancelled else { return }
-                let denied = (error as NSError).domain == SCStreamErrorDomain &&
-                    (error as NSError).code == SCStreamError.Code.userDeclined.rawValue
-                if denied { self.hasScreenAccess = false; self.effect.stop() }
-                else { self.message = "Screen access could not be checked: \(error.localizedDescription)" }
+                let denied =
+                    (error as NSError).domain == SCStreamErrorDomain
+                    && (error as NSError).code == SCStreamError.Code.userDeclined.rawValue
+                if denied {
+                    self.hasScreenAccess = false
+                    self.effect.stop()
+                } else {
+                    self.message = "Screen access could not be checked: \(error.localizedDescription)"
+                }
                 if denied && openSettingsOnFailure {
-                    self.message = "macOS hasn’t connected screen access yet. Enable DuoLid in Screen Recording, then use Relaunch DuoLid in Settings."
+                    self.message =
+                        "macOS hasn’t connected screen access yet. Enable DuoLid in Screen Recording, then use Relaunch DuoLid in Settings."
                     self.openScreenSettings()
                 }
             }
@@ -243,17 +300,22 @@ final class AppModel: ObservableObject {
         Task {
             await shutdown()
             do {
-                _ = try await NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration)
+                _ = try await NSWorkspace.shared.openApplication(
+                    at: Bundle.main.bundleURL, configuration: configuration)
                 NSApp.terminate(nil)
             } catch {
                 message = "DuoLid couldn’t relaunch: \(error.localizedDescription)"
-                interruptions.end(.shutdown); started = false; start()
+                interruptions.end(.shutdown)
+                started = false
+                start()
             }
         }
     }
 
     func openScreenSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") { NSWorkspace.shared.open(url) }
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -289,11 +351,17 @@ final class AppModel: ObservableObject {
         report.screenRecording = hasScreenAccess ? .available : .permissionRequired
         report.capture = capturePhase
         report.graphics = graphicsFailed ? .failed : .checking
-        struct SupportReport: Encodable { let capability: CapabilityReport; let performance: PerformanceReport? }
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        struct SupportReport: Encodable {
+            let capability: CapabilityReport
+            let performance: PerformanceReport?
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         if let data = try? encoder.encode(SupportReport(capability: report, performance: lastPerformanceReport)),
-           let text = String(data: data, encoding: .utf8) {
-            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+            let text = String(data: data, encoding: .utf8)
+        {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
             message = "Technical diagnostics copied. They contain no screenshots, window titles, or account details."
         }
     }
@@ -304,7 +372,8 @@ final class AppModel: ObservableObject {
         needsRecovery = false
         graphicsFailed = false
         message = nil
-        applyEffect(); statusDidChange?()
+        applyEffect()
+        statusDidChange?()
     }
 
     func playPreview(onDesktop: Bool = false) {
@@ -312,9 +381,15 @@ final class AppModel: ObservableObject {
             message = "Previews are unavailable while graphics are stopped."
             return
         }
-        if previewPlaying { stopPreview(); return }
+        if previewPlaying {
+            stopPreview()
+            return
+        }
         guard !onDesktop || (settings.enabled && settings.blurEnabled) else { return }
-        guard !onDesktop || hasScreenAccess else { requestScreenAccess(); return }
+        guard !onDesktop || hasScreenAccess else {
+            requestScreenAccess()
+            return
+        }
         guard !onDesktop || DesktopEffect.builtInScreen != nil else {
             message = "Open the MacBook’s built-in display to try the desktop effect."
             return
@@ -334,15 +409,21 @@ final class AppModel: ObservableObject {
                 let t = ProcessInfo.processInfo.systemUptime - start
                 if t >= 3.7 { break }
                 let fraction: Double
-                if t < 1.6 { fraction = self.ease(t / 1.6) }
-                else if t < 2.0 { fraction = 1 }
-                else { fraction = 1 - self.ease((t - 2.0) / 1.7) }
+                if t < 1.6 {
+                    fraction = self.ease(t / 1.6)
+                } else if t < 2.0 {
+                    fraction = 1
+                } else {
+                    fraction = 1 - self.ease((t - 2.0) / 1.7)
+                }
                 let animatedAngle = openAngle - fraction * (openAngle - 16)
                 self.desktopPreviewAngle = animatedAngle
                 // A desktop preview already animates the real display. Rebuilding the
                 // SwiftUI illustration simultaneously needlessly competes for its GPU.
                 if !self.desktopPreview { self.previewAngle = animatedAngle }
-                if previewLatch.update(angle: animatedAngle, clearAngle: self.settings.clearAngle, at: ProcessInfo.processInfo.systemUptime), self.settings.soundEnabled {
+                if previewLatch.update(
+                    angle: animatedAngle, clearAngle: self.settings.clearAngle, at: ProcessInfo.processInfo.systemUptime
+                ), self.settings.soundEnabled {
                     self.playSound()
                 }
                 if self.desktopPreview { self.applyEffect() }
@@ -355,14 +436,21 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func ease(_ x: Double) -> Double { let x = min(1, max(0, x)); return x * x * (3 - 2 * x) }
+    private func ease(_ x: Double) -> Double {
+        let x = min(1, max(0, x))
+        return x * x * (3 - 2 * x)
+    }
 
     func stopPreview() {
-        previewTask?.cancel(); previewTask = nil
+        previewTask?.cancel()
+        previewTask = nil
         previewPlaying = false
         let wasDesktop = desktopPreview
         desktopPreview = false
-        if wasDesktop { effect.stop(); applyEffect() }
+        if wasDesktop {
+            effect.stop()
+            applyEffect()
+        }
     }
 
     func emergencyPause() {
@@ -411,9 +499,14 @@ final class AppModel: ObservableObject {
 
     func shutdown() async {
         interruptions.begin(.shutdown)
-        stopPreview(); effect.stop(); sensor.stop(); sound.stop()
-        permissionTimer?.invalidate(); permissionTimer = nil
-        permissionTask?.cancel(); permissionTask = nil
+        stopPreview()
+        effect.stop()
+        sensor.stop()
+        sound.stop()
+        permissionTimer?.invalidate()
+        permissionTimer = nil
+        permissionTask?.cancel()
+        permissionTask = nil
         for observer in observers {
             NotificationCenter.default.removeObserver(observer)
             NSWorkspace.shared.notificationCenter.removeObserver(observer)

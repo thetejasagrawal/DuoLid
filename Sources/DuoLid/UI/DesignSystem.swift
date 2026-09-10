@@ -1,5 +1,5 @@
-import SwiftUI
 import DuoLidCore
+import SwiftUI
 
 enum DuoTheme {
     static let ink = Color.primary
@@ -14,9 +14,10 @@ extension GlowPalette {
     var swiftUIColors: [Color] {
         colors.map { components in
             let white = components.max() ?? 1
-            return Color(red: components[0] * 0.42 + white * 0.58,
-                         green: components[1] * 0.42 + white * 0.58,
-                         blue: components[2] * 0.42 + white * 0.58)
+            return Color(
+                red: components[0] * 0.42 + white * 0.58,
+                green: components[1] * 0.42 + white * 0.58,
+                blue: components[2] * 0.42 + white * 0.58)
         }
     }
 }
@@ -25,7 +26,10 @@ struct DuoMark: View {
     var size: CGFloat = 34
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: size * 0.25).fill(LinearGradient(colors: [Color(red: 0.71, green: 0.63, blue: 1), Color(red: 0.46, green: 0.36, blue: 0.83)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            RoundedRectangle(cornerRadius: size * 0.25).fill(
+                LinearGradient(
+                    colors: [Color(red: 0.71, green: 0.63, blue: 1), Color(red: 0.46, green: 0.36, blue: 0.83)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing))
             RoundedRectangle(cornerRadius: size * 0.075)
                 .stroke(.white.opacity(0.95), lineWidth: size * 0.052)
                 .frame(width: size * 0.44, height: size * 0.44)
