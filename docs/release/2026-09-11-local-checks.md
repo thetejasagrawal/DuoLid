@@ -11,7 +11,7 @@ These are implementation checks, not release acceptance. The WindowServer incide
 - Sparkle 2.9.6 generated a signed local development archive/feed. Public-key verification accepted both. An edited feed and a one-byte archive corruption were rejected. These fixtures stayed in ignored local build output and were not published. Actual installation, update relaunch, and interrupted-download recovery remain pending.
 - Shell syntax, Python compilation, JavaScript syntax, website asset/link checks, and whitespace checks passed.
 
-No full-screen or visible Metal presentation diagnostic was run after the owner requested stopping disruptive tests. No physical Intel or additional MacBook validation is implied. VoiceOver, increased contrast, system Reduce Motion, sleep/session/display recovery, Gatekeeper/notarization and quarantined installation still require recorded acceptance.
+These initial checks did not include a visible Metal presentation diagnostic after the owner requested stopping disruptive tests. The owner subsequently authorized controlled windowed checks; those failed presentation acceptance and are recorded in [the windowed check report](2026-09-11-windowed-checks.md). Full-screen testing remains suspended. No physical Intel or additional MacBook validation is implied. VoiceOver, increased contrast, system Reduce Motion, sleep/session/display recovery, Gatekeeper/notarization and quarantined installation still require recorded acceptance.
 
 ## Committed source and release-build evidence
 

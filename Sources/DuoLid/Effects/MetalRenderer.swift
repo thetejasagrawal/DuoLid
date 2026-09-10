@@ -512,12 +512,15 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
             releaseFrames()
             return true
         }
-        if let fence = commandQueue.makeCommandBuffer() {
-            let finished = DispatchSemaphore(value: 0)
-            fence.addCompletedHandler { _ in finished.signal() }
-            fence.commit()
-            guard finished.wait(timeout: .now() + 2) == .success else { return false }
-        }
+        // Failure to create or complete the fence is not evidence that earlier
+        // work drained. The caller keeps that surface quarantined until exit.
+        guard let fence = commandQueue.makeCommandBuffer() else { return false }
+        let finished = DispatchSemaphore(value: 0)
+        fence.addCompletedHandler { _ in finished.signal() }
+        fence.commit()
+        guard finished.wait(timeout: .now() + 2) == .success,
+            fence.status == .completed, fence.error == nil
+        else { return false }
         releaseFrames()
         return true
     }

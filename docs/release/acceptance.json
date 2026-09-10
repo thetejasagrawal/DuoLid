@@ -19,11 +19,12 @@
   },
   "evidence": [
     "docs/release/2026-09-11-local-checks.md",
-    "https://github.com/thetejasagrawal/DuoLid/actions/runs/34522480895"
+    "https://github.com/thetejasagrawal/DuoLid/actions/runs/34522480895",
+    "docs/release/2026-09-11-windowed-checks.md"
   ],
   "blockers": [
     "Pink-screen reports and WindowServer watchdog timeouts during development; cause and live recovery have not been confirmed.",
-    "New live presentation path is unverified. Visible diagnostics remain opt-in.",
+    "Two authorized five-second synthetic windowed checks at 60 fps failed the presentation gate. Longer, 120 fps, and live-capture checks remain unverified; the offscreen Instruments trace was unusable. Visible diagnostics remain opt-in.",
     "Notarization credentials and quarantined installation/update acceptance are pending."
   ]
 }
