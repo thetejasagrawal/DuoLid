@@ -12,10 +12,20 @@ import xml.etree.ElementTree as ET
 root = pathlib.Path(sys.argv[1])
 metadata = json.loads((root / 'provenance.json').read_text())
 assert not metadata['dirty'], 'Candidate was built from uncommitted input'
+expected_files = {f"DuoLid-{metadata['version']}.dmg", f"DuoLid-{metadata['version']}.zip", 'appcast.xml', 'provenance.json'}
+checked_files = set()
 for line in (root / 'SHA256SUMS').read_text().splitlines():
     digest, filename = line.split('  ', 1)
     assert '/' not in filename and not filename.startswith('.'), 'Unsafe checksum path'
+    assert filename not in checked_files, 'Duplicate checksum entry'
     assert hashlib.sha256((root / filename).read_bytes()).hexdigest() == digest, filename
+    checked_files.add(filename)
+assert checked_files == expected_files, 'Every published artifact must have a checksum'
+assert metadata['bundleIdentifier'] == 'app.duolid.DuoLid'
+assert set(metadata['architectures']) == {'arm64', 'x86_64'}
+disk_image = root / f"DuoLid-{metadata['version']}.dmg"
+subprocess.run(['codesign', '--verify', '--strict', str(disk_image)], check=True)
+subprocess.run(['xcrun', 'stapler', 'validate', str(disk_image)], check=True)
 feed_bytes = (root / 'appcast.xml').read_bytes()
 signing_block = re.search(rb'<!-- sparkle-signatures:\nedSignature: ([A-Za-z0-9+/=]+)\nlength: ([0-9]+)\n-->\n?\Z', feed_bytes)
 assert signing_block is not None, 'Feed has no valid trailing signature block'

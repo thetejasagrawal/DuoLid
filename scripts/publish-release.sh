@@ -10,7 +10,7 @@ version="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["vers
 commit="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit"])' "$candidate/provenance.json")"
 build="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["build"])' "$candidate/provenance.json")"
 # Reject stale binaries if any shipped input changed after candidate creation.
-test -z "$(git diff --name-only "$commit" HEAD -- Sources Resources Package.swift Package.resolved scripts)" || { echo 'Candidate is stale; rebuild with a higher build number.' >&2; exit 1; }
+test -z "$(git diff --name-only "$commit" HEAD -- Sources Resources Package.swift Package.resolved scripts LICENSE THIRD_PARTY_NOTICES.md)" || { echo 'Candidate is stale; rebuild with a higher build number.' >&2; exit 1; }
 if gh release view "v$version" --repo thetejasagrawal/DuoLid >/dev/null 2>&1; then
     echo 'This version already exists. Published artifacts are immutable; use a higher version/build.' >&2; exit 1
 fi

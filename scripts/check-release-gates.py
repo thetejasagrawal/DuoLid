@@ -26,7 +26,7 @@ if not tested:
     missing.append('testedCommit')
 else:
     subprocess.run(['git', 'merge-base', '--is-ancestor', tested, commit], check=True)
-    changed = subprocess.check_output(['git', 'diff', '--name-only', tested, commit, '--', 'Sources', 'Resources', 'Package.swift', 'Package.resolved', 'scripts'], text=True)
+    changed = subprocess.check_output(['git', 'diff', '--name-only', tested, commit, '--', 'Sources', 'Resources', 'Package.swift', 'Package.resolved', 'scripts', 'LICENSE', 'THIRD_PARTY_NOTICES.md'], text=True)
     if changed.strip(): missing.append('shipped inputs changed after acceptance')
 if record.get('blockers'): missing.append('unresolved blockers')
 if missing:
