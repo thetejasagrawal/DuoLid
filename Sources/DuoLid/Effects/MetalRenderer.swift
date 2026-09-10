@@ -134,8 +134,10 @@ struct EffectUniforms {
 
 /// Shader compilation is shared across capture sessions, never repeated during a fold.
 // Metal devices and immutable pipeline states are documented for concurrent use.
-// This object is fully initialized before publication and has no mutable state.
-private final class EffectGPU: Sendable {
+// Fully initialized before publication. Metal devices and compiled pipelines
+// support concurrent use; older SDKs omit their Sendable annotations. Mutable
+// command encoders and working textures belong to each renderer, never this cache.
+private final class EffectGPU: @unchecked Sendable {
     private static let cache = Cache()
     private final class Cache: @unchecked Sendable {
         let lock = NSLock()

@@ -208,7 +208,7 @@ final class DesktopEffect {
                     self?.setCaptureCadence(rate)
                 })
             renderLoop = loop
-            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            let content = try await CaptureContent.fetch()
             guard token == generation, !Task.isCancelled, shouldRun else { return }
             guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
                 throw NSError(

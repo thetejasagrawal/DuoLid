@@ -131,7 +131,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
     }
 
     private func startCapture() async throws {
-        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        let content = try await CaptureContent.fetch()
         guard !finishing, !Task.isCancelled else { return }
         guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
             throw RenderError.unavailable

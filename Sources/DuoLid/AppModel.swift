@@ -267,7 +267,7 @@ final class AppModel: ObservableObject {
                 self.permissionTask = nil
             }
             do {
-                _ = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+                _ = try await CaptureContent.fetch()
                 guard !Task.isCancelled else { return }
                 self.hasScreenAccess = true
                 self.message = nil
