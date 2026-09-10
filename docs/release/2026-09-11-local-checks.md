@@ -2,7 +2,7 @@
 
 These are implementation checks, not release acceptance. The WindowServer incident and live presentation path remain unverified.
 
-- Swift 6 release compilation with warnings treated as errors: passed. The final suite has 34 CPU behavioral tests, including regression cases for stale permission hints after both grants and revocation.
+- Swift 6 release compilation with warnings treated as errors: passed. That revision's suite had 34 CPU behavioral tests, including regression cases for stale permission hints after both grants and revocation. The later windowed-diagnostic revision expands the suite to 37 tests.
 - Universal development packaging: arm64 and x86_64, macOS 14 deployment targets, framework paths, bundled resources and nested signatures passed static verification.
 - Offscreen production renderer: open pixels unchanged; isolated Gaussian highlight maximum adjacent step 1/255; Gaussian reference difference 1/255 across five positions; twelve style/palette combinations exercised. Native 3456×2234 GPU execution across 15 frames had median 3.43 ms and maximum 7.38 ms. This is GPU execution, **not** displayed frame rate or capture performance.
 - Presentation diagnostic without explicit visible-test opt-in: exited 64 and created no window.

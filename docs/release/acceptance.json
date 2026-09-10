@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "version": "0.9.0-beta.1",
   "build": "90001",
-  "testedCommit": "a2cc2b33cfa13d13a83f818fdc1bebd5f4f0a4c1",
+  "testedCommit": "5e02f98df405bd16204af1f3201aa4e078c4d377",
   "checks": {
     "strictBuildsAndTests": true,
     "pinkScreenIncidentResolved": false,
@@ -19,7 +19,7 @@
   },
   "evidence": [
     "docs/release/2026-09-11-local-checks.md",
-    "https://github.com/thetejasagrawal/DuoLid/actions/runs/34522480895",
+    "https://github.com/thetejasagrawal/DuoLid/actions/runs/34527006636",
     "docs/release/2026-09-11-windowed-checks.md"
   ],
   "blockers": [
