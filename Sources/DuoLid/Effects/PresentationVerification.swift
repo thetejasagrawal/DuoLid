@@ -156,7 +156,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             sampleHandlerQueue: DispatchQueue(label: "app.duolid.diagnostic.capture", qos: .userInteractive))
         self.receiver = receiver
         self.stream = stream
-        try await stream.startCapture()
+        try await stream.startOnMainActor()
     }
 
     private func finish(cancelled: Bool) {
@@ -175,7 +175,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
         loop.stop()
         Task { [self] in
             await startup?.value
-            try? await stream?.stopCapture()
+            try? await stream?.stopOnMainActor()
             let drained = await loop.stopAndWait()
             if drained { window.close() }
             try? await Task.sleep(for: .milliseconds(150))

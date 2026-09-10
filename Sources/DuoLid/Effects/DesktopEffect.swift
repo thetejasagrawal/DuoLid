@@ -250,9 +250,9 @@ final class DesktopEffect {
             self.configuration = configuration
             self.receiver = receiver
             self.stream = stream
-            try await stream.startCapture()
+            try await stream.startOnMainActor()
             guard token == generation, !Task.isCancelled else {
-                try? await stream.stopCapture()
+                try? await stream.stopOnMainActor()
                 return
             }
             onCaptureChanged?(.capturing)
@@ -328,7 +328,7 @@ final class DesktopEffect {
         cadenceTask = Task { [weak self] in
             await previous?.value
             guard !Task.isCancelled else { return }
-            do { try await stream.updateConfiguration(configuration) } catch {
+            do { try await stream.updateOnMainActor(configuration) } catch {
                 if !Task.isCancelled && self?.generation == token {
                     self?.fail("Capture frame rate could not be changed: \(error.localizedDescription)")
                 }
@@ -372,7 +372,7 @@ final class DesktopEffect {
                 await previousCleanup?.value
                 await startup?.value
                 await cadence?.value
-                try? await oldStream?.stopCapture()
+                try? await oldStream?.stopOnMainActor()
                 let drained = await oldLoop?.stopAndWait() ?? true
                 oldFrames.clear()
                 withExtendedLifetime(oldReceiver) {}
