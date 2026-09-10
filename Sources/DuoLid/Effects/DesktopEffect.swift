@@ -66,7 +66,14 @@ final class DesktopEffect {
     private(set) var failureLatched = false
     // If the GPU cannot drain, retain its surfaces until process exit. The
     // circuit breaker prevents another session from accumulating resources.
-    private var quarantinedSurface: AnyObject?
+    private struct RetiredSurface {
+        // Retaining only the panel preserves its drawable, but not the renderer's
+        // working textures or command queue. Keep the entire rendering owner.
+        let panel: EffectPanel?
+        let renderer: MetalRenderer?
+        let loop: DisplayRenderLoop?
+    }
+    private static var quarantinedSurfaces: [RetiredSurface] = []
     private var generation = 0
     private var lastFailure = -Double.infinity
     private var targetAngle = 120.0
@@ -82,12 +89,12 @@ final class DesktopEffect {
         self.liveAngle = liveAngle
         self.defaults = defaults
         self.settingsOnly = settingsOnly
-        failureLatched = defaults.bool(forKey: "DuoLid.renderSessionInterrupted")
+        failureLatched = defaults.bool(forKey: "DuoLid.renderSessionInterrupted") || !Self.quarantinedSurfaces.isEmpty
     }
 
     @discardableResult
     func acknowledgeFailure() -> Bool {
-        guard quarantinedSurface == nil else {
+        guard Self.quarantinedSurfaces.isEmpty else {
             onError?("Restart DuoLid before trying graphics again.")
             return false
         }
@@ -113,7 +120,8 @@ final class DesktopEffect {
             reduceMotion: settings.respectReduceMotion && NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
             useLiveAngle: useLiveAngle)
         let enabled =
-            allowed && Self.builtInScreen != nil && !settingsOnly && !failureLatched && settings.enabled
+            allowed && Self.builtInScreen != nil && !settingsOnly && !failureLatched
+            && Self.quarantinedSurfaces.isEmpty && settings.enabled
             && settings.blurEnabled
         updateCadence()
         displayWanted = captureGate.update(angle: angle, clearAngle: settings.clearAngle, enabled: enabled)
@@ -398,8 +406,12 @@ final class DesktopEffect {
                         self?.defaults.set(false, forKey: "DuoLid.renderSessionInterrupted")
                     }
                 } else {
+                    Self.quarantinedSurfaces.append(
+                        RetiredSurface(panel: oldPanel, renderer: oldRenderer, loop: oldLoop))
                     self?.failureLatched = true
-                    self?.quarantinedSurface = oldPanel
+                    self?.defaults.set(true, forKey: "DuoLid.renderSessionInterrupted")
+                    self?.onGraphicsFailure?()
+                    self?.onCaptureChanged?(.failed)
                     self?.onError?("Graphics did not finish shutting down. Restart DuoLid before testing again.")
                 }
                 self?.cleanupTask = nil
