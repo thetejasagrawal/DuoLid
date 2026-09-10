@@ -1,0 +1,22 @@
+.build/
+dist/
+.DS_Store
+.swiftpm/
+artifacts/
+*.xcuserstate
+xcuserdata/
+
+# Local credentials and Apple signing assets
+*.p12
+*.p8
+*.key
+*.cer
+*.certSigningRequest
+.env
+.env.*
+!*.example
+release-private/
+*.trace
+*.ips
+*.spin
+__pycache__/
