@@ -9,7 +9,8 @@ final class AppModel: ObservableObject {
     @Published var settings: DuoSettings { didSet { saveAndApply(previous: oldValue) } }
     @Published private(set) var angle: Double?
     @Published private(set) var sensorState: LidSensor.State = .searching
-    @Published private(set) var hasScreenAccess = false
+    @Published private var screenAccess = ScreenAccessState(preflightHint: false)
+    var hasScreenAccess: Bool { screenAccess.hasAccess }
     @Published private(set) var checkingScreenAccess = false
     @Published private(set) var capturePhase: CapturePhase = .idle
     @Published private(set) var needsRecovery = false
@@ -68,7 +69,7 @@ final class AppModel: ObservableObject {
         }
         settings = loaded
         previewAngle = documentationPreview == nil ? 6 + (settings.clearAngle - 6) * 0.46 : 27
-        hasScreenAccess = CGPreflightScreenCaptureAccess()
+        screenAccess.observePreflight(CGPreflightScreenCaptureAccess())
         permissionRequested = defaults.bool(forKey: "DuoLid.permissionRequested")
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
@@ -129,7 +130,7 @@ final class AppModel: ObservableObject {
                 "A previous graphics session did not finish safely. Automatic effects are paused. Open Settings to review and retry."
         }
         effect.onPermissionDenied = { [weak self] in
-            self?.hasScreenAccess = false
+            self?.screenAccess.confirm(false)
             self?.statusDidChange?()
         }
         effect.onCaptureChanged = { [weak self] phase in self?.capturePhase = phase }
@@ -137,7 +138,7 @@ final class AppModel: ObservableObject {
         effect.onPerformanceReport = { [weak self] in self?.lastPerformanceReport = $0 }
         effect.onActiveChanged = { [weak self] active in
             self?.effectActive = active
-            if active { self?.hasScreenAccess = true }
+            if active { self?.screenAccess.confirm(true) }
             self?.effectDidChange?(active)
         }
         sound.onError = { [weak self] in self?.message = $0 }
@@ -240,10 +241,9 @@ final class AppModel: ObservableObject {
 
     func refreshPermissions() {
         let access = CGPreflightScreenCaptureAccess()
-        // CoreGraphics is a hint. Never overwrite a successful ScreenCaptureKit
-        // verification with a cached negative from this older preflight API.
-        if access && !hasScreenAccess {
-            hasScreenAccess = true
+        let previous = hasScreenAccess
+        screenAccess.observePreflight(access)
+        if hasScreenAccess != previous {
             applyEffect()
             statusDidChange?()
         }
@@ -269,7 +269,7 @@ final class AppModel: ObservableObject {
             do {
                 _ = try await CaptureContent.fetch()
                 guard !Task.isCancelled else { return }
-                self.hasScreenAccess = true
+                self.screenAccess.confirm(true)
                 self.message = nil
                 self.applyEffect()
                 self.statusDidChange?()
@@ -279,7 +279,7 @@ final class AppModel: ObservableObject {
                     (error as NSError).domain == SCStreamErrorDomain
                     && (error as NSError).code == SCStreamError.Code.userDeclined.rawValue
                 if denied {
-                    self.hasScreenAccess = false
+                    self.screenAccess.confirm(false)
                     self.effect.stop()
                 } else {
                     self.message = "Screen access could not be checked: \(error.localizedDescription)"

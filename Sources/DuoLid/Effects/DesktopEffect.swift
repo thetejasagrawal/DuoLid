@@ -16,8 +16,12 @@ private final class EffectSurface: NSView {
 
 final class StreamReceiver: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
     let frames: CapturedFrame
-    var onError: (@Sendable (String) -> Void)?
-    init(frames: CapturedFrame) { self.frames = frames }
+    // Immutable after initialization; frames synchronizes its own storage.
+    let onError: (@Sendable (Error) -> Void)?
+    init(frames: CapturedFrame, onError: (@Sendable (Error) -> Void)? = nil) {
+        self.frames = frames
+        self.onError = onError
+    }
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .screen, sampleBuffer.isValid,
             let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false)
@@ -28,7 +32,7 @@ final class StreamReceiver: NSObject, SCStreamOutput, SCStreamDelegate, @uncheck
         else { return }
         frames.set(buffer)
     }
-    func stream(_ stream: SCStream, didStopWithError error: Error) { onError?(error.localizedDescription) }
+    func stream(_ stream: SCStream, didStopWithError error: Error) { onError?(error) }
 }
 
 @MainActor
@@ -236,11 +240,10 @@ final class DesktopEffect {
             configuration.capturesAudio = false
             configuration.colorSpaceName = CGColorSpace.sRGB
             RenderLog.logger.notice("Capture configured: \(configuration.width)×\(configuration.height), \(fps) fps")
-            let receiver = StreamReceiver(frames: frames)
-            receiver.onError = { [weak self] message in
+            let receiver = StreamReceiver(frames: frames) { [weak self] error in
                 Task { @MainActor in
                     guard self?.generation == token else { return }
-                    self?.fail(message)
+                    self?.failCapture(error)
                 }
             }
             let stream = SCStream(filter: filter, configuration: configuration, delegate: receiver)
@@ -278,13 +281,8 @@ final class DesktopEffect {
             }
         } catch {
             guard token == generation, !Task.isCancelled else { return }
-            if (error as NSError).domain == SCStreamErrorDomain
-                && (error as NSError).code == SCStreamError.Code.userDeclined.rawValue
-            {
-                onPermissionDenied?()
-            }
             if error is RenderError { onGraphicsFailure?() }
-            fail(error.localizedDescription)
+            failCapture(error)
         }
     }
 
@@ -297,6 +295,14 @@ final class DesktopEffect {
         firstFrameTask?.cancel()
         firstFrameTask = nil
         onActiveChanged?(true)
+    }
+
+    private func failCapture(_ error: Error) {
+        let failure = error as NSError
+        if failure.domain == SCStreamErrorDomain && failure.code == SCStreamError.Code.userDeclined.rawValue {
+            onPermissionDenied?()
+        }
+        fail(error.localizedDescription)
     }
 
     private func fail(_ message: String) {
@@ -330,7 +336,7 @@ final class DesktopEffect {
             guard !Task.isCancelled else { return }
             do { try await stream.updateOnMainActor(configuration) } catch {
                 if !Task.isCancelled && self?.generation == token {
-                    self?.fail("Capture frame rate could not be changed: \(error.localizedDescription)")
+                    self?.failCapture(error)
                 }
             }
         }

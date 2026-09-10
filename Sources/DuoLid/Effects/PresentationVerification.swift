@@ -148,8 +148,9 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
         configuration.showsCursor = false
         configuration.capturesAudio = false
         configuration.colorSpaceName = CGColorSpace.sRGB
-        let receiver = StreamReceiver(frames: frames)
-        receiver.onError = { [weak self] _ in Task { @MainActor in self?.finish(cancelled: true) } }
+        let receiver = StreamReceiver(frames: frames) { [weak self] _ in
+            Task { @MainActor in self?.finish(cancelled: true) }
+        }
         let stream = SCStream(filter: filter, configuration: configuration, delegate: receiver)
         try stream.addStreamOutput(
             receiver, type: .screen,

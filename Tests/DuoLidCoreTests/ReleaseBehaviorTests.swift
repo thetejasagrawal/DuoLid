@@ -131,4 +131,22 @@ final class ReleaseBehaviorTests: XCTestCase {
         state.end(.sleeping)
         XCTAssertTrue(state.isSuspended)
     }
+
+    func testVerifiedScreenAccessSurvivesStaleNegativeHints() {
+        var access = ScreenAccessState(preflightHint: false)
+        XCTAssertFalse(access.hasAccess)
+        access.confirm(true)
+        access.observePreflight(false)
+        XCTAssertTrue(access.hasAccess)
+    }
+
+    func testPermissionRevocationSurvivesStalePositiveHintsUntilReverified() {
+        var access = ScreenAccessState(preflightHint: true)
+        access.confirm(true)
+        access.confirm(false)
+        access.observePreflight(true)
+        XCTAssertFalse(access.hasAccess)
+        access.confirm(true)
+        XCTAssertTrue(access.hasAccess)
+    }
 }
