@@ -16,4 +16,6 @@ A persistent interrupted-session marker is set during capture/rendering and clea
 
 Settings-only launch bypasses capture and Metal preview creation without changing user preferences. The sample preview otherwise uses synthetic desktop pixels and the same shader implementation as the live path. No previous frame is blended into the next; dithering is spatial, not temporal.
 
+The preview also pauses after a reported graphics failure or an interrupted session. A preview surface that cannot drain is retained until process exit and cannot be recreated in that process. Capture errors keep their type through delegate delivery, so permission revocation changes permission state. Confirmed ScreenCaptureKit results take precedence over both positive and negative cached CoreGraphics hints.
+
 `UpdaterController` wraps Sparkle's native updater, with an HTTPS signed feed and signed archives verified before extraction. The updater delegate postpones relaunch while the app awaits cleanup. Normal termination also uses AppKit's deferred termination reply. Automatic checking is opt-in; installation is interactive and system profiling is disabled.
