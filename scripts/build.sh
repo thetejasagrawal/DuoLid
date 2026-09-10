@@ -54,11 +54,11 @@ args=(--force --sign "$identity")
 if $release; then args+=(--options runtime --timestamp); fi
 sparkle="$app/Contents/Frameworks/Sparkle.framework/Versions/B"
 # Sign from the innermost executable outward; never rely on codesign --deep.
-codesign "${args[@]}" "$sparkle/XPCServices/Downloader.xpc"
-codesign "${args[@]}" "$sparkle/XPCServices/Installer.xpc"
-codesign "${args[@]}" "$sparkle/Autoupdate"
-codesign "${args[@]}" "$sparkle/Updater.app"
-codesign "${args[@]}" "$app/Contents/Frameworks/Sparkle.framework"
+codesign "${args[@]}" --preserve-metadata=entitlements "$sparkle/XPCServices/Downloader.xpc"
+codesign "${args[@]}" --preserve-metadata=entitlements "$sparkle/XPCServices/Installer.xpc"
+codesign "${args[@]}" --preserve-metadata=entitlements "$sparkle/Autoupdate"
+codesign "${args[@]}" --preserve-metadata=entitlements "$sparkle/Updater.app"
+codesign "${args[@]}" --preserve-metadata=entitlements "$app/Contents/Frameworks/Sparkle.framework"
 codesign "${args[@]}" "$app"
 python3 scripts/verify-bundle.py "$app" "$mode"
 output="$PWD/dist/$mode"

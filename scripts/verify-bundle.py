@@ -29,6 +29,9 @@ for path in ("Resources/DuoLid.icns", "Resources/Effects.metal", "Resources/LICE
 framework = app / "Contents/Frameworks/Sparkle.framework"
 assert (framework / "Versions/Current").is_symlink()
 assert set(run("lipo", "-archs", str(framework / "Sparkle")).split()) == {"arm64", "x86_64"}
+helper = framework / "Versions/B/Autoupdate"
+entitlements = subprocess.check_output(["codesign", "-d", "--entitlements", ":-", str(helper)], stderr=subprocess.DEVNULL)
+assert plistlib.loads(entitlements)["com.apple.application-identifier"] == "org.sparkle-project.Sparkle.Autoupdate"
 for item in [framework / "Versions/B/XPCServices/Downloader.xpc", framework / "Versions/B/XPCServices/Installer.xpc",
              framework / "Versions/B/Autoupdate", framework / "Versions/B/Updater.app", framework, app]:
     run("codesign", "--verify", "--strict", str(item))
