@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 import DuoLidCore
 import MetalKit
 import ScreenCaptureKit
@@ -27,6 +28,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
     private enum StopReason: String, Encodable {
         case completed, escape, windowClosed, applicationQuit, windowOccluded
         case graphicsStall, graphicsFailure, captureFailure, startupFailure
+        case emergencyControlUnavailable
     }
     private let renderer: MetalRenderer
     private let window: NSWindow
@@ -45,6 +47,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
     private var fixture: PresentationFixture?
     private var captureExclusion: CaptureExclusion?
     private var requestedCaptureDimensions: PixelSize?
+    private var escapeKey: DiagnosticEscapeKey?
     private var escapeMonitor: Any?
     private var startedAt = 0.0
     private var finishing = false
@@ -125,6 +128,23 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        do {
+            // Esc must work even after focus moves away from this window, and
+            // for a borderless check on a designated test machine. Refuse to
+            // show a diagnostic if its emergency control cannot be installed.
+            escapeKey = try DiagnosticEscapeKey { [weak self] in self?.finish(reason: .escape) }
+        } catch {
+            FileHandle.standardError.write(Data("\(error.localizedDescription)\n".utf8))
+            finish(reason: .emergencyControlUnavailable)
+            return
+        }
+        // Also handle events delivered directly to the focused application,
+        // including accessibility-generated key events that bypass hotkeys.
+        escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard event.keyCode == 53 else { return event }
+            MainActor.assumeIsolated { self?.finish(reason: .escape) }
+            return nil
+        }
         if live, let screen = window.screen {
             let fixture = PresentationFixture(screen: screen)
             fixture.window.delegate = self
@@ -132,13 +152,6 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             self.fixture = fixture
         }
         window.makeKeyAndOrderFront(nil)
-        escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 {
-                MainActor.assumeIsolated { self?.finish(reason: .escape) }
-                return nil
-            }
-            return event
-        }
         startupTask = Task { [self] in
             do {
                 if live { try await startCapture() }
@@ -198,6 +211,8 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
         timeoutTask?.cancel()
         let startup = startupTask
         startup?.cancel()
+        escapeKey?.stop()
+        escapeKey = nil
         if let escapeMonitor {
             NSEvent.removeMonitor(escapeMonitor)
             self.escapeMonitor = nil
@@ -305,5 +320,58 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             }
         }
         return buffer
+    }
+}
+
+/// Main-actor registration with an explicit lifetime. No Accessibility or Input
+/// Monitoring permission is needed, and the key is released before shutdown.
+@MainActor
+private final class DiagnosticEscapeKey {
+    private var handler: EventHandlerRef?
+    private var key: EventHotKeyRef?
+    private let action: () -> Void
+
+    init(action: @escaping () -> Void) throws {
+        self.action = action
+        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        let result = InstallEventHandler(
+            GetApplicationEventTarget(),
+            { _, event, context in
+                guard let event, let context else { return OSStatus(eventNotHandledErr) }
+                var identifier = EventHotKeyID()
+                guard GetEventParameter(
+                    event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil,
+                    MemoryLayout<EventHotKeyID>.size, nil, &identifier) == noErr,
+                    identifier.signature == 0x444C_4454, identifier.id == 1
+                else { return OSStatus(eventNotHandledErr) }
+                MainActor.assumeIsolated {
+                    Unmanaged<DiagnosticEscapeKey>.fromOpaque(context).takeUnretainedValue().action()
+                }
+                return noErr
+            }, 1, &eventType, Unmanaged.passUnretained(self).toOpaque(), &handler)
+        guard result == noErr, handler != nil else {
+            stop()
+            throw Self.unavailable()
+        }
+        let registration = RegisterEventHotKey(
+            UInt32(kVK_Escape), 0, EventHotKeyID(signature: 0x444C_4454, id: 1),
+            GetApplicationEventTarget(), 0, &key)
+        guard registration == noErr, key != nil else {
+            stop()
+            throw Self.unavailable()
+        }
+    }
+
+    func stop() {
+        if let key { UnregisterEventHotKey(key) }
+        if let handler { RemoveEventHandler(handler) }
+        key = nil
+        handler = nil
+    }
+
+    private static func unavailable() -> NSError {
+        NSError(
+            domain: "DuoLid.Verification", code: 69,
+            userInfo: [NSLocalizedDescriptionKey: "The diagnostic cannot reserve Esc. Close any conflicting shortcut and try again; no test window has been shown."])
     }
 }
