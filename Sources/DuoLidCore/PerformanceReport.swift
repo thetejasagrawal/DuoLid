@@ -60,13 +60,14 @@ public struct PerformanceReport: Codable, Sendable {
     public let presentationLeadMS: Double
     public let presentation: PresentationTiming
     public let capture: CaptureTiming?
+    public let preparationMS: Double?
     public var passesCadence: Bool { presentation.passes(targetFPS: targetFPS) }
 
     public init(
         targetFPS: Double, completedFrames: Int, skippedSubmissions: Int,
         gpuMS: Double, cpuMS: Double, gpuQueueMS: Double,
         captureArrivalAgeMS: Double, presentationLeadMS: Double,
-        presentation: PresentationTiming, capture: CaptureTiming? = nil
+        presentation: PresentationTiming, capture: CaptureTiming? = nil, preparationMS: Double? = nil
     ) {
         schemaVersion = 1
         self.targetFPS = targetFPS
@@ -79,5 +80,6 @@ public struct PerformanceReport: Codable, Sendable {
         self.presentationLeadMS = presentationLeadMS
         self.presentation = presentation
         self.capture = capture
+        self.preparationMS = preparationMS
     }
 }

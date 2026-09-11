@@ -41,6 +41,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
     private var startupTask: Task<Void, Never>?
     private var stream: SCStream?
     private var receiver: StreamReceiver?
+    private var fixture: PresentationFixture?
     private var escapeMonitor: Any?
     private var startedAt = 0.0
     private var finishing = false
@@ -81,6 +82,9 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             contentRect: contentRect, styleMask: fullScreen ? .borderless : [.titled, .closable], backing: .buffered,
             defer: false)
         window.title = "DuoLid \(live ? "Live capture" : "Synthetic") test · Esc to stop"
+        // A covered window is intentionally not presented by WindowServer.
+        // Keep this bounded, dismissible test visible without using an overlay.
+        window.level = .floating
         window.isOpaque = true
         window.backgroundColor = .black
         window.isReleasedWhenClosed = false
@@ -107,6 +111,12 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if live, let screen = window.screen {
+            let fixture = PresentationFixture(screen: screen)
+            fixture.window.delegate = self
+            fixture.show()
+            self.fixture = fixture
+        }
         window.makeKeyAndOrderFront(nil)
         escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 {
@@ -142,7 +152,9 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             throw RenderError.unavailable
         }
         let ownApps = content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }
-        let filter = SCContentFilter(display: display, excludingApplications: ownApps, exceptingWindows: [])
+        let fixtureWindows = content.windows.filter { Int($0.windowID) == fixture?.window.windowNumber }
+        guard fixtureWindows.count == 1 else { throw RenderError.unavailable }
+        let filter = SCContentFilter(display: display, excludingApplications: ownApps, exceptingWindows: fixtureWindows)
         if #available(macOS 14.2, *) { filter.includeMenuBar = true }
         let configuration = SCStreamConfiguration()
         configuration.width = Int((filter.contentRect.width * CGFloat(filter.pointPixelScale)).rounded())
@@ -172,6 +184,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
         let visibleAtStop = window.occlusionState.contains(.visible)
         let elapsed = startedAt > 0 ? CACurrentMediaTime() - startedAt : 0
         window.orderOut(nil)
+        fixture?.close()
         timer?.invalidate()
         timer = nil
         timeoutTask?.cancel()
@@ -191,6 +204,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             let report = renderer.statistics.snapshot(targetFPS: Double(fps))
             struct RunReport: Encodable {
                 let mode: String
+                let movingCaptureFixture: Bool
                 let cancelled: Bool
                 let stopReason: StopReason
                 let windowVisibleAtStop: Bool
@@ -204,7 +218,8 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             if let data = try? encoder.encode(
                 RunReport(
-                    mode: live ? "live-capture" : "synthetic", cancelled: cancelled,
+                    mode: live ? "live-capture" : "synthetic", movingCaptureFixture: live,
+                    cancelled: cancelled,
                     stopReason: reason, windowVisibleAtStop: visibleAtStop,
                     requestedDuration: duration, elapsedDuration: elapsed,
                     drained: drained, timing: report,
@@ -225,7 +240,9 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
     func windowDidChangeOcclusionState(_ notification: Notification) {
         // WindowServer may stop presenting completely covered windows. That is
         // an interrupted measurement, not evidence of a failing GPU or cadence.
-        guard startedAt > 0, !window.occlusionState.contains(.visible) else { return }
+        guard notification.object as? NSWindow === window,
+            startedAt > 0, !window.occlusionState.contains(.visible)
+        else { return }
         finish(reason: .windowOccluded)
     }
 

@@ -21,6 +21,7 @@ final class RenderStatistics: @unchecked Sendable {
     private var count = 0, skipped = 0
     private var gpuTime = 0.0, arrivalAge = 0.0, cpuTime = 0.0
     private var presentationLead = 0.0, queueWait = 0.0
+    private var preparationMS: Double?
     private var timestamps: [Double] = []
     private var writeIndex = 0
     private var pending: [UInt64: Double] = [:]
@@ -58,6 +59,7 @@ final class RenderStatistics: @unchecked Sendable {
         }
     }
     func skip() { lock.withLock { skipped += 1 } }
+    func prepared(in seconds: Double) { lock.withLock { preparationMS = seconds * 1_000 } }
     func record(gpu: Double, age: Double, cpu: Double, lead: Double, wait: Double) {
         lock.withLock {
             count += 1
@@ -77,7 +79,7 @@ final class RenderStatistics: @unchecked Sendable {
                 gpuQueueMS: queueWait * scale, captureArrivalAgeMS: arrivalAge * scale,
                 presentationLeadMS: presentationLead * scale,
                 presentation: PresentationTiming(timestamps: timestamps, targetFPS: targetFPS, warmup: warmup),
-                capture: frames.timing())
+                capture: frames.timing(), preparationMS: preparationMS)
         }
     }
     func recentTimestamps(since time: Double) -> [Double] {
@@ -223,6 +225,9 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
     let frames: CapturedFrame
     private let liveAngle: LatestLidSample?
     private var submissionID: UInt64 = 0
+    private var hasCommittedWork = false
+    private var didPrepareBlur = false
+    private var preparationFailed = false
     private struct State {
         var settings = DuoSettings()
         var progress = 0.0
@@ -295,7 +300,18 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         to layer: CAMetalLayer, at presentationTime: CFTimeInterval = CACurrentMediaTime(),
         minimumDuration: CFTimeInterval? = nil
     ) {
-        guard frames.get() != nil else { return }
+        guard !preparationFailed, let (buffer, _) = frames.get() else { return }
+        if !didPrepareBlur {
+            guard let (retainedTexture, source) = sourceTexture(for: buffer),
+                prepareBlur(source: source, input: FrameLease(texture: retainedTexture, buffer: buffer))
+            else {
+                preparationFailed = true
+                let failure = onFailure
+                Task { @MainActor in failure?("Graphics preparation did not finish. DuoLid has paused the effect.") }
+                return
+            }
+            didPrepareBlur = true
+        }
         guard inFlight.wait(timeout: .now()) == .success else {
             statistics.skip()
             return
@@ -315,21 +331,18 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         let began = CACurrentMediaTime()
         var committed = false
         defer { if !committed { inFlight.signal() } }
-        guard let (pixelBuffer, receivedAt) = frames.get(), let cache = textureCache else { return }
-        var cvTexture: CVMetalTexture?
+        guard let (pixelBuffer, receivedAt) = frames.get() else { return }
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)
         guard
-            CVMetalTextureCacheCreateTextureFromImage(
-                nil, cache, pixelBuffer, nil, .bgra8Unorm,
-                width, height, 0, &cvTexture) == kCVReturnSuccess,
-            let retainedTexture = cvTexture, let source = CVMetalTextureGetTexture(retainedTexture),
+            let (retainedTexture, source) = sourceTexture(for: pixelBuffer),
             let command = commandQueue.makeCommandBuffer()
         else { return }
         // Allocate both blur levels while the first captured frame is prepared,
         // including at zero progress, so crossing the blur threshold allocates no textures.
         prepareTextures(width: width, height: height)
         prepareReducedTextures(width: max(1, width / 2), height: max(1, height / 2))
+        let input = FrameLease(texture: retainedTexture, buffer: pixelBuffer)
         var snapshot = stateLock.withLock { state }
         if let target = (snapshot.useLiveAngle ? liveAngle?.get() : nil) ?? snapshot.targetAngle {
             let angle = smoother.update(target, at: presentationTime, response: snapshot.settings.response) ?? target
@@ -343,7 +356,6 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         drawable.addPresentedHandler { drawable in statistics.presented(id: id, at: drawable.presentedTime) }
         let frameAge = max(0, ProcessInfo.processInfo.systemUptime - receivedAt)
         let submitted = CACurrentMediaTime()
-        let input = FrameLease(texture: retainedTexture, buffer: pixelBuffer)
         let failure = onFailure
         let firstFrame = scheduledFirstPresentation ? nil : FirstFrameSignal(action: onPresent)
         scheduledFirstPresentation = true
@@ -383,8 +395,58 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         } else {
             command.present(drawable)
         }
+        hasCommittedWork = true
         command.commit()
         committed = true
+    }
+
+    private func sourceTexture(for buffer: CVPixelBuffer) -> (CVMetalTexture, MTLTexture)? {
+        guard let cache = textureCache else { return nil }
+        var cvTexture: CVMetalTexture?
+        guard CVMetalTextureCacheCreateTextureFromImage(
+            nil, cache, buffer, nil, .bgra8Unorm,
+            CVPixelBufferGetWidth(buffer), CVPixelBufferGetHeight(buffer), 0, &cvTexture) == kCVReturnSuccess,
+            let retainedTexture = cvTexture, let texture = CVMetalTextureGetTexture(retainedTexture)
+        else { return nil }
+        return (retainedTexture, texture)
+    }
+
+    /// Exercise both Gaussian texture formats before the first visible frame.
+    /// Metal Performance Shaders specializes its work lazily; crossing from the
+    /// broad half-size blur to a narrow native blur must not do that mid-fold.
+    /// Runs once on the rendering owner during the brief capture preparation.
+    private func prepareBlur(source: MTLTexture, input: FrameLease) -> Bool {
+        let began = CACurrentMediaTime()
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm, width: source.width, height: source.height, mipmapped: false)
+        descriptor.usage = .renderTarget
+        descriptor.storageMode = .private
+        guard let target = device.makeTexture(descriptor: descriptor),
+            let command = commandQueue.makeCommandBuffer()
+        else { return false }
+        var preparation = State()
+        preparation.backingScale = 1
+        preparation.settings.intensity = 1
+        for sigma in [2.0, 7.75, 24.0] {
+            preparation.progress = sigma / preparation.settings.style.radius
+            guard encodeEffect(command: command, source: source, target: target, state: preparation) else {
+                return false
+            }
+        }
+        let completed = DispatchSemaphore(value: 0)
+        command.addCompletedHandler { _ in
+            withExtendedLifetime(input) {}
+            completed.signal()
+        }
+        hasCommittedWork = true
+        command.commit()
+        // Never block the main actor or wait indefinitely on the GPU. A failed
+        // preparation follows the same fenced retirement as a visible session.
+        guard completed.wait(timeout: .now() + 0.5) == .success,
+            command.status == .completed, command.error == nil
+        else { return false }
+        statistics.prepared(in: CACurrentMediaTime() - began)
+        return true
     }
 
     /// The production renderer and offscreen verification use this same pipeline.
@@ -520,7 +582,7 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
     /// command buffer fences earlier submissions without blocking the main actor.
     @discardableResult
     func finishRendering() -> Bool {
-        guard submissionID > 0 else {
+        guard hasCommittedWork else {
             releaseFrames()
             return true
         }
