@@ -174,7 +174,7 @@ final class DesktopEffect {
             layer.device = renderer.device
             layer.pixelFormat = .bgra8Unorm
             layer.framebufferOnly = true
-            layer.maximumDrawableCount = 2
+            layer.maximumDrawableCount = MetalRenderer.drawableCount
             layer.allowsNextDrawableTimeout = true
             layer.displaySyncEnabled = true
             layer.presentsWithTransaction = false

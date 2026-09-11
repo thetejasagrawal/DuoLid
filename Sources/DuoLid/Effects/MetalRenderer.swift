@@ -202,6 +202,10 @@ enum RenderError: LocalizedError {
 }
 
 final class MetalRenderer: NSObject, @unchecked Sendable {
+    // WindowServer can retain the displayed and pending surfaces simultaneously.
+    // Leave a third surface available for rendering; GPU submissions stay capped
+    // at two by inFlight and always read the latest captured input.
+    static let drawableCount = 3
     let device: MTLDevice
     private let commandQueue: MTLCommandQueue
     private let compositePipeline: MTLRenderPipelineState

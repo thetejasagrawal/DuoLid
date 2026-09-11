@@ -84,7 +84,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
         let layer = CAMetalLayer()
         layer.device = renderer.device
         layer.pixelFormat = .bgra8Unorm
-        layer.maximumDrawableCount = 2
+        layer.maximumDrawableCount = MetalRenderer.drawableCount
         layer.framebufferOnly = true
         layer.allowsNextDrawableTimeout = true
         layer.presentsWithTransaction = false

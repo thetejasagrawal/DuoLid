@@ -189,7 +189,7 @@ private final class PreviewSurface: NSView {
             layer.device = renderer.device
             layer.pixelFormat = .bgra8Unorm
             layer.framebufferOnly = true
-            layer.maximumDrawableCount = 2
+            layer.maximumDrawableCount = MetalRenderer.drawableCount
             layer.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
             layer.presentsWithTransaction = false
             layer.displaySyncEnabled = true
