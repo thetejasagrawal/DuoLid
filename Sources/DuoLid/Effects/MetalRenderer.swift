@@ -129,6 +129,7 @@ final class CapturedFrame: @unchecked Sendable {
         guard let buffer else { return nil }
         return (buffer, timestamp)
     }
+    var hasFrame: Bool { lock.withLock { buffer != nil } }
     func clear() {
         lock.lock()
         buffer = nil
@@ -306,11 +307,9 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         to layer: CAMetalLayer, at presentationTime: CFTimeInterval = CACurrentMediaTime(),
         minimumDuration: CFTimeInterval? = nil
     ) {
-        guard !preparationFailed, let (buffer, _) = frames.get() else { return }
+        guard !preparationFailed, frames.hasFrame else { return }
         if !didPrepareBlur {
-            guard let (retainedTexture, source) = sourceTexture(for: buffer),
-                prepareBlur(source: source, input: FrameLease(texture: retainedTexture, buffer: buffer))
-            else {
+            guard prepareFirstCapture() else {
                 preparationFailed = true
                 let failure = onFailure
                 Task { @MainActor in failure?("Graphics preparation did not finish. DuoLid has paused the effect.") }
@@ -372,7 +371,7 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
                 encodingStartedAt: began, submittedAt: submitted))
         command.addCompletedHandler { command in
             // Keep the IOSurface-backed input alive until the GPU has finished reading it.
-            withExtendedLifetime(input) {}
+            input.release()
             semaphore.signal()
             let success = command.status == .completed && command.error == nil
             statistics.completed(id: id, start: command.gpuStartTime, end: command.gpuEndTime, success: success)
@@ -419,6 +418,13 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         return (retainedTexture, texture)
     }
 
+    private func prepareFirstCapture() -> Bool {
+        guard let (buffer, _) = frames.get(), let (retainedTexture, source) = sourceTexture(for: buffer) else {
+            return false
+        }
+        return prepareBlur(source: source, input: FrameLease(texture: retainedTexture, buffer: buffer))
+    }
+
     /// Exercise both Gaussian texture formats before the first visible frame.
     /// Metal Performance Shaders specializes its work lazily; crossing from the
     /// broad half-size blur to a narrow native blur must not do that mid-fold.
@@ -443,7 +449,7 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         }
         let completed = DispatchSemaphore(value: 0)
         command.addCompletedHandler { _ in
-            withExtendedLifetime(input) {}
+            input.release()
             completed.signal()
         }
         hasCommittedWork = true
