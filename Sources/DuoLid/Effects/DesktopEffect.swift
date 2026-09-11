@@ -107,7 +107,7 @@ final class DesktopEffect {
         NSScreen.screens.first {
             guard let id = $0.displayID else { return false }
             return CGDisplayIsBuiltin(id) != 0 && CGDisplayIsActive(id) != 0
-                && CGDisplayMirrorsDisplay(id) == kCGNullDirectDisplay
+                && CGDisplayIsInMirrorSet(id) == 0
         }
     }
 

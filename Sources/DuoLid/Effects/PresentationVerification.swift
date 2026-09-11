@@ -50,7 +50,12 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
 
     init(arguments args: [String] = CommandLine.arguments) throws {
         guard let screen = DesktopEffect.builtInScreen, let displayID = screen.displayID else {
-            throw RenderError.unavailable
+            throw NSError(
+                domain: "DuoLid.Verification", code: 75,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "The built-in display is inactive or mirrored. Open and wake it, with display mirroring turned off, before running this check."
+                ])
         }
         self.displayID = displayID
         func argument(_ flag: String) -> String? {
