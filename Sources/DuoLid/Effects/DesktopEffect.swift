@@ -216,8 +216,12 @@ final class DesktopEffect {
                 renderer: renderer, layer: layer, screen: screen, fps: fps,
                 automatic: settings.frameRateMode == .automatic,
                 onCadenceChange: { [weak self] rate in
-                    guard self?.generation == token else { return }
-                    self?.setCaptureCadence(rate)
+                    // A power-mode or user change can supersede an automatic
+                    // fallback before its main-actor callback is delivered.
+                    guard let self, self.generation == token,
+                        self.renderLoop?.framesPerSecond == rate
+                    else { return }
+                    self.setCaptureCadence(rate)
                 })
             renderLoop = loop
             let content = try await CaptureContent.fetch()

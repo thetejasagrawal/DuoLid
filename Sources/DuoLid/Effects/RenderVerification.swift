@@ -111,6 +111,7 @@ enum RenderVerification {
                 variants += 1
             }
         }
+        try checkPartialBlur(renderer, source: source)
         try checkBlurSampling(renderer, source: source, width: width, height: height, output: output)
         try benchmarkNativeResolution(renderer)
         print(
@@ -135,14 +136,53 @@ enum RenderVerification {
         renderer.settings.glowEnabled = true
         renderer.backingScale = 2
         var times: [Double] = []
-        for frame in 0..<18 {
-            renderer.progress = 0.2 + Double(frame % 10) * 0.08
-            _ = try renderer.renderOffscreen(source: source)
-            if frame >= 3 { times.append(renderer.lastGPUTime * 1_000) }
+        for progress in [0.01, 0.02, 0.035, 0.05, 0.065, 0.07, 0.08, 0.12, 0.2, 0.5, 0.8, 1.0] {
+            renderer.progress = progress
+            var samples: [Double] = []
+            for repetition in 0..<4 {
+                try autoreleasepool {
+                    _ = try renderer.renderOffscreen(source: source)
+                    if repetition > 0 { samples.append(renderer.lastGPUTime * 1_000) }
+                }
+            }
+            samples.sort()
+            times.append(contentsOf: samples)
+            print(
+                "Gaussian sigma \(String(format: "%.2f", progress * 57)): median \(String(format: "%.2f", samples[1])) ms, max \(String(format: "%.2f", samples.last!)) ms."
+            )
         }
         times.sort()
         print(
-            "Native \(width)×\(height) GPU timing, blur + fold + glow: median \(String(format: "%.2f", times[times.count / 2])) ms, maximum \(String(format: "%.2f", times.last!)) ms across \(times.count) changing frames."
+            "Native \(width)×\(height) GPU timing, blur + fold + glow: median \(String(format: "%.2f", times[times.count / 2])) ms, maximum \(String(format: "%.2f", times.last!)) ms across \(times.count) samples covering narrow and broad blur."
+        )
+    }
+
+    private static func checkPartialBlur(_ renderer: MetalRenderer, source: MTLTexture) throws {
+        var largestDifference = 0
+        // Alternate deep and shallow folds so an accidental read below the
+        // freshly computed rows encounters stale pixels from another angle.
+        for style in EffectStyle.allCases {
+            renderer.settings = DuoSettings()
+            renderer.settings.style = style
+            renderer.settings.glowEnabled = true
+            renderer.settings.glowIntensity = 1
+            renderer.settings.edgeBleed = 1
+            renderer.backingScale = 2
+            for progress in [0.7, 0.02, 0.5, 0.05, 0.2, 0.035, 0.065, 0.1, 0.4] {
+                try autoreleasepool {
+                    renderer.progress = progress
+                    let optimized = try read(renderer.renderOffscreen(source: source))
+                    let reference = try read(renderer.renderOffscreen(source: source, fullResolutionBlur: true))
+                    largestDifference = max(
+                        largestDifference, zip(optimized, reference).map { abs(Int($0) - Int($1)) }.max()!)
+                }
+            }
+        }
+        guard largestDifference <= 4 else {
+            throw checkError("Partial blur or halo sampled incorrect pixels: difference \(largestDifference)/255.")
+        }
+        print(
+            "Partial blur and reversal reference passed: maximum channel difference \(largestDifference)/255 across all three styles with maximum glow and bleed."
         )
     }
 

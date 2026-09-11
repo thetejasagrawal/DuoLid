@@ -39,8 +39,10 @@ final class PresentationFixture {
             tile.bounds = CGRect(x: 0, y: 0, width: 180, height: 34)
             tile.position = CGPoint(x: 120, y: 36 + row * 46)
             tile.cornerRadius = 6
-            tile.backgroundColor = NSColor(
-                srgbRed: 0.23 + Double(row) * 0.16, green: 0.37, blue: 0.72, alpha: 1).cgColor
+            tile.backgroundColor =
+                NSColor(
+                    srgbRed: 0.23 + Double(row) * 0.16, green: 0.37, blue: 0.72, alpha: 1
+                ).cgColor
             root.addSublayer(tile)
             let label = CATextLayer()
             label.string = "DuoLid  Aa  0123456789"

@@ -88,7 +88,13 @@ fragment float4 duoComposite(VertexOut in [[stage_in]], texture2d<float> origina
         // Above the folding edge, sample along that edge directly. Extrapolating the
         // inverse perspective up here would split the halo down its center.
         float2 edgeUV = uv.y < topY ? float2(clamp((uv.x - 0.5) / topScale + 0.5, 0.0, 1.0), 0.0) : clamp(projected, 0.0, 1.0);
-        float luminance = dot(blurred.sample(s, edgeUV).rgb, float3(0.2126, 0.7152, 0.0722));
+        // The halo follows the same top-down sweep as the desktop. Rows below
+        // that sweep remain sharp and are never read from partial blur textures.
+        float edgeFront = mix(-0.18, 1.18, u.progress);
+        float edgeCoverage = (1.0 - smoothstep(edgeFront - 0.18, edgeFront + 0.18, edgeUV.y)) * smoothstep(0.0, 0.025, u.progress);
+        float3 edgeColor = original.sample(s, edgeUV).rgb;
+        if (edgeCoverage > 0.0) { edgeColor = mix(edgeColor, blurred.sample(s, edgeUV).rgb, edgeCoverage); }
+        float luminance = dot(edgeColor, float3(0.2126, 0.7152, 0.0722));
         float3 ambient = float3(luminance * 0.18);
         float upper = u.corners < 0.5 || u.corners > 1.5 ? 1.0 : 0.0;
         float lower = u.corners < 1.5 ? 1.0 : 0.0;

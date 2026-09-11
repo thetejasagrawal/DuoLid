@@ -22,6 +22,7 @@ final class DisplayRenderLoop: NSObject, @unchecked Sendable {
     private var automatic: Bool
     private let onCadenceChange: (@MainActor @Sendable (Int) -> Void)?
     private var lastCadenceCheck = 0.0
+    var framesPerSecond: Int { lock.withLock { Int(fps) } }
 
     @MainActor
     init(

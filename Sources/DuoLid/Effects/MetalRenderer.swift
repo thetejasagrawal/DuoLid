@@ -403,9 +403,10 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
     private func sourceTexture(for buffer: CVPixelBuffer) -> (CVMetalTexture, MTLTexture)? {
         guard let cache = textureCache else { return nil }
         var cvTexture: CVMetalTexture?
-        guard CVMetalTextureCacheCreateTextureFromImage(
-            nil, cache, buffer, nil, .bgra8Unorm,
-            CVPixelBufferGetWidth(buffer), CVPixelBufferGetHeight(buffer), 0, &cvTexture) == kCVReturnSuccess,
+        guard
+            CVMetalTextureCacheCreateTextureFromImage(
+                nil, cache, buffer, nil, .bgra8Unorm,
+                CVPixelBufferGetWidth(buffer), CVPixelBufferGetHeight(buffer), 0, &cvTexture) == kCVReturnSuccess,
             let retainedTexture = cvTexture, let texture = CVMetalTextureGetTexture(retainedTexture)
         else { return nil }
         return (retainedTexture, texture)
@@ -483,10 +484,22 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
                 deep = deepBlur
                 soft = softBlur
             }
+            // The blur sweep reaches y = 1.36 * progress. Keep the sharp source
+            // full-size, but only compute destination rows that the compositor
+            // can sample. Two extra rows cover bilinear filtering at the edge.
+            // The reference path deliberately computes the entire image.
+            let rows =
+                fullResolutionBlur
+                ? blurSource.height
+                : min(
+                    blurSource.height, max(1, Int(ceil(Double(blurSource.height) * 1.36 * progress)) + 2))
+            let region = MTLRegionMake2D(0, 0, blurSource.width, rows)
             updateKernel(&deepKernel, sigma: workingSigma)
+            deepKernel?.clipRect = region
             deepKernel?.encode(commandBuffer: command, sourceTexture: blurSource, destinationTexture: deep)
             if gradient > 0 {
                 updateKernel(&softKernel, sigma: workingSigma * (settings.style == .duo ? 0.28 : 0.64))
+                softKernel?.clipRect = region
                 softKernel?.encode(commandBuffer: command, sourceTexture: blurSource, destinationTexture: soft)
             }
         }
