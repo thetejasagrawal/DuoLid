@@ -5,7 +5,7 @@ import QuartzCore
 
 /// Owns its display link and renderer on one dedicated run loop. Cross-thread
 /// control uses the lock and CFRunLoopPerformBlock; shutdown has an awaitable end.
-final class DisplayRenderLoop: NSObject, @unchecked Sendable {
+final class DisplayRenderLoop: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sendable {
     private let renderer: MetalRenderer
     private let layer: CAMetalLayer
     private let lock = NSLock()
@@ -17,7 +17,7 @@ final class DisplayRenderLoop: NSObject, @unchecked Sendable {
     private var drained = true
     private var completions: [CheckedContinuation<Bool, Never>] = []
     // Accessed only by the display thread.
-    private var link: CADisplayLink?
+    private var link: CAMetalDisplayLink?
     private var adaptive: AdaptiveCadence
     private var automatic: Bool
     private let onCadenceChange: (@MainActor @Sendable (Int) -> Void)?
@@ -31,14 +31,11 @@ final class DisplayRenderLoop: NSObject, @unchecked Sendable {
     ) {
         self.renderer = renderer
         self.layer = layer
-        self.fps = Float(fps)
+        self.fps = Float(min(fps, max(1, screen.maximumFramesPerSecond)))
         self.automatic = automatic
         self.onCadenceChange = onCadenceChange
         adaptive = AdaptiveCadence(framesPerSecond: fps)
         super.init()
-        // AppKit binds this clock to the intended screen. Unlike a Metal display
-        // link it does not acquire surfaces before a capture frame is available.
-        link = screen.displayLink(target: self, selector: #selector(tick(_:)))
     }
 
     func start() {
@@ -78,11 +75,29 @@ final class DisplayRenderLoop: NSObject, @unchecked Sendable {
                 context.perform = { _ in }
                 let keepAlive = CFRunLoopSourceCreate(nil, 0, &context)!
                 CFRunLoopAddSource(loop, keepAlive, .defaultMode)
-                guard let link = self.link else { return }
-                applyCadence()
-                link.add(to: .current, forMode: .default)
+                // Prepare before asking Core Animation for display surfaces.
+                // A stream can return from startCapture before its first frame.
+                // This short-lived timer belongs to the render run loop; it
+                // never blocks AppKit while waiting for capture or GPU warm-up.
+                let preparation = Timer(timeInterval: 1.0 / 120, repeats: true) { [self] timer in
+                    guard !lock.withLock({ stopped }), renderer.frames.hasFrame else { return }
+                    timer.invalidate()
+                    guard renderer.prepareForDisplay() else {
+                        stop()
+                        return
+                    }
+                    guard !lock.withLock({ stopped }) else { return }
+                    let link = CAMetalDisplayLink(metalLayer: layer)
+                    link.delegate = self
+                    link.preferredFrameLatency = 1
+                    self.link = link
+                    applyCadence()
+                    link.add(to: .current, forMode: .default)
+                }
+                RunLoop.current.add(preparation, forMode: .default)
                 CFRunLoopRun()
-                link.invalidate()
+                preparation.invalidate()
+                self.link?.invalidate()
                 self.link = nil
                 CFRunLoopRemoveSource(loop, keepAlive, .defaultMode)
             }
@@ -140,10 +155,13 @@ final class DisplayRenderLoop: NSObject, @unchecked Sendable {
         }
     }
 
-    @objc private func tick(_ link: CADisplayLink) {
+    func metalDisplayLink(_ link: CAMetalDisplayLink, needsUpdate update: CAMetalDisplayLink.Update) {
         guard !lock.withLock({ stopped }) else { return }
         autoreleasepool {
-            renderer.draw(to: layer, at: link.targetTimestamp, minimumDuration: 1 / Double(lock.withLock { fps }))
+            // Core Animation supplies an available drawable and its own timing.
+            // Waiting for nextDrawable() on a separate clock couples capture's
+            // compositor work to the animation and can produce late 8/25 ms pairs.
+            renderer.draw(update: update)
             let now = CACurrentMediaTime()
             if now - lastCadenceCheck >= 0.25 {
                 lastCadenceCheck = now

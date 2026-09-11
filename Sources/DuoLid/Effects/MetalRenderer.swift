@@ -302,21 +302,25 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         }
     }
 
-    /// Called only on the dedicated render queue. No AppKit or SwiftUI work runs here.
-    func draw(
-        to layer: CAMetalLayer, at presentationTime: CFTimeInterval = CACurrentMediaTime(),
-        minimumDuration: CFTimeInterval? = nil
-    ) {
-        guard !preparationFailed, frames.hasFrame else { return }
+    /// Called only by the rendering owner, before requesting display surfaces.
+    @discardableResult
+    func prepareForDisplay() -> Bool {
+        guard !preparationFailed, frames.hasFrame else { return false }
         if !didPrepareBlur {
             guard prepareFirstCapture() else {
                 preparationFailed = true
                 let failure = onFailure
                 Task { @MainActor in failure?("Graphics preparation did not finish. DuoLid has paused the effect.") }
-                return
+                return false
             }
             didPrepareBlur = true
         }
+        return true
+    }
+
+    /// Static preview updates acquire their own drawable on the preview owner.
+    func draw(to layer: CAMetalLayer, at presentationTime: CFTimeInterval = CACurrentMediaTime()) {
+        guard prepareForDisplay() else { return }
         guard inFlight.wait(timeout: .now()) == .success else {
             statistics.skip()
             return
@@ -326,12 +330,25 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
             inFlight.signal()
             return
         }
-        draw(drawable: drawable, at: presentationTime, requestedAt: requestedAt, minimumDuration: minimumDuration)
+        draw(drawable: drawable, at: presentationTime, requestedAt: requestedAt)
+    }
+
+    /// Continuous rendering uses the surface already scheduled by Core Animation.
+    /// No nextDrawable wait or second presentation clock is involved.
+    func draw(update: CAMetalDisplayLink.Update) {
+        guard didPrepareBlur, !preparationFailed, frames.hasFrame else { return }
+        guard inFlight.wait(timeout: .now()) == .success else {
+            statistics.skip()
+            return
+        }
+        draw(
+            drawable: update.drawable, at: update.targetPresentationTimestamp,
+            requestedAt: CACurrentMediaTime(), submissionDeadline: update.targetTimestamp)
     }
 
     private func draw(
         drawable: CAMetalDrawable, at presentationTime: CFTimeInterval, requestedAt: CFTimeInterval,
-        minimumDuration: CFTimeInterval?
+        submissionDeadline: CFTimeInterval? = nil
     ) {
         let began = CACurrentMediaTime()
         var committed = false
@@ -368,7 +385,7 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         statistics.submitted(
             RenderFrameTiming(
                 id: id, targetTime: presentationTime, drawableRequestedAt: requestedAt,
-                encodingStartedAt: began, submittedAt: submitted))
+                encodingStartedAt: began, submittedAt: submitted, submissionDeadline: submissionDeadline))
         command.addCompletedHandler { command in
             // Keep the IOSurface-backed input alive until the GPU has finished reading it.
             input.release()
@@ -391,11 +408,11 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         // Present only once Metal has scheduled the writes to this drawable.
         // Calling drawable.present() immediately after commit can race scheduling
         // and expose an unwritten surface.
-        // Base continuous frame pacing on the previous actual presentation. This
-        // prevents 8.3/25 ms pairs at a 60 fps target on a 120 Hz compositor.
-        // Animation still samples the display link's predicted target time.
-        if let minimumDuration, minimumDuration.isFinite, minimumDuration > 0 {
-            command.present(drawable, afterMinimumDuration: minimumDuration)
+        // CAMetalDisplayLink owns presentation timing. Apple explicitly forbids
+        // timed present variants on its drawables. Keep presentation on the
+        // command buffer so an uninitialized drawable can never be exposed.
+        if submissionDeadline != nil {
+            command.present(drawable)
         } else if presentationTime.isFinite, presentationTime > submitted {
             command.present(drawable, atTime: presentationTime)
         } else {
