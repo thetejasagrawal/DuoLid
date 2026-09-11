@@ -427,7 +427,7 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         var preparation = State()
         preparation.backingScale = 1
         preparation.settings.intensity = 1
-        for sigma in [2.0, 7.75, 24.0] {
+        for sigma in [2.0, 3.875, 24.0] {
             preparation.progress = sigma / preparation.settings.style.radius
             guard encodeEffect(command: command, source: source, target: target, state: preparation) else {
                 return false
@@ -465,7 +465,7 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         var deep: MTLTexture = source
         var soft: MTLTexture = source
         if sigma >= 0.25 {
-            let reduced = sigma >= 8 && !fullResolutionBlur
+            let reduced = sigma >= 4 && !fullResolutionBlur
             var blurSource = source
             let workingSigma = sigma * (reduced ? 0.5 : 1)
             if reduced {

@@ -180,7 +180,7 @@ enum RenderVerification {
         }
         print("Blur sampling passed: isolated highlight is smooth (maximum adjacent step \(jumps.max()!) levels).")
         var largestDifference = 0
-        for progress in [0.08, 0.15, 0.3, 0.6, 1.0] {
+        for progress in [0.065, 0.07, 0.08, 0.15, 0.3, 0.6, 1.0] {
             renderer.progress = progress
             let optimized = try read(renderer.renderOffscreen(source: source))
             let reference = try read(renderer.renderOffscreen(source: source, fullResolutionBlur: true))
@@ -192,7 +192,7 @@ enum RenderVerification {
                 "Optimized Gaussian diverged from the native-resolution reference by \(largestDifference) levels.")
         }
         print(
-            "Blur quality reference passed: maximum channel difference \(largestDifference)/255 across five fold positions."
+            "Blur quality reference passed: maximum channel difference \(largestDifference)/255 across seven fold positions, including the blur-resolution transition."
         )
     }
 
