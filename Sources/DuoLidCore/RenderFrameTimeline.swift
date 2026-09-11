@@ -7,7 +7,6 @@ public struct RenderFrameTiming: Codable, Sendable {
     public let drawableRequestedAt: Double
     public let encodingStartedAt: Double
     public let submittedAt: Double
-    public let submissionDeadline: Double?
     public fileprivate(set) var gpuStartedAt: Double?
     public fileprivate(set) var gpuEndedAt: Double?
     public fileprivate(set) var gpuSucceeded: Bool?
@@ -15,14 +14,13 @@ public struct RenderFrameTiming: Codable, Sendable {
 
     public init(
         id: UInt64, targetTime: Double, drawableRequestedAt: Double,
-        encodingStartedAt: Double, submittedAt: Double, submissionDeadline: Double? = nil
+        encodingStartedAt: Double, submittedAt: Double
     ) {
         self.id = id
         self.targetTime = targetTime
         self.drawableRequestedAt = drawableRequestedAt
         self.encodingStartedAt = encodingStartedAt
         self.submittedAt = submittedAt
-        self.submissionDeadline = submissionDeadline
     }
 }
 
