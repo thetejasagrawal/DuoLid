@@ -72,7 +72,7 @@ The beta uses SDR/sRGB capture, so HDR highlights may look different while the e
 
 ## Availability
 
-The first planned release is **0.9.0-beta.1**. The download button activates only after the notarized release assets are published and verified. The current beta is still in preparation: presentation testing and the previously reported pink-screen interruption remain release blockers. [Release acceptance](docs/release/acceptance.json) records the evidence; passing source tests alone is not release acceptance.
+The first planned release is **0.9.0-beta.1**. The download button activates only after the notarized release assets are published and verified. The current beta is still in preparation: live-capture pacing, a failed 120 fps recheck, and recovery from the previously reported pink-screen interruption remain release blockers. [Current test results](docs/release/2026-09-11-capture-scheduling.md) and [release acceptance](docs/release/acceptance.json) record the evidence; passing source tests alone is not release acceptance.
 
 Stable **1.0.0** follows broader physical hardware testing. Downloads, release notes, source, and the signed update feed are hosted on GitHub. No separate website is needed.
 

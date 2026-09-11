@@ -1,0 +1,63 @@
+{
+  "cancelled": false,
+  "captureExclusion": "window",
+  "drained": true,
+  "elapsedDuration": 5.3181237499993586,
+  "gpuFailures": 0,
+  "mode": "live-capture-baseline",
+  "movingCaptureFixture": true,
+  "nativePixels": {
+    "height": 2234,
+    "width": 3456
+  },
+  "passesCadence": false,
+  "profiled": false,
+  "requestedCaptureDimensions": {
+    "height": 2234,
+    "width": 3456
+  },
+  "requestedDuration": 5,
+  "sourceCommit": "0a4a5ae5e710aadc320dc77d600820bb415b3bcd",
+  "stopReason": "completed",
+  "timing": {
+    "capture": {
+      "arrivalFPS": 52.912178429185744,
+      "dimensions": {
+        "height": 2234,
+        "width": 3456
+      },
+      "latestFrameAgeMS": 161.0027499991702,
+      "p95IntervalMS": 24.372041665628785,
+      "receivedFrames": 281,
+      "source": "live"
+    },
+    "captureArrivalAgeMS": 10.220063700553046,
+    "completedFrames": 295,
+    "cpuMS": 0.09247161019706933,
+    "gpuMS": 0.8236577683727758,
+    "gpuQueueMS": 0.3737663825277349,
+    "preparationMS": 358.0401666677062,
+    "presentation": {
+      "duration": 4.6000138750005135,
+      "frames": 277,
+      "framesPerSecond": 59.99981902227832,
+      "medianIntervalMS": 16.6667083340144,
+      "missedDeadlineRatio": 0.0547945205479452,
+      "p95IntervalMS": 25.00004166722647
+    },
+    "presentationLeadMS": 49.7855659597578,
+    "renderedDimensions": {
+      "height": 2234,
+      "width": 3456
+    },
+    "schemaVersion": 1,
+    "skippedSubmissions": 0,
+    "targetFPS": 60
+  },
+  "warmupSeconds": 0.25,
+  "windowPoints": {
+    "height": 620,
+    "width": 960
+  },
+  "windowVisibleAtStop": true
+}

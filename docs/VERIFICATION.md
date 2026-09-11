@@ -8,6 +8,8 @@ During development on 2026-09-10, the owner reported repeated completely pink sc
 
 All DuoLid processes were stopped. Full-screen testing is suspended on the owner's working desktop. The implementation now uses an AppKit display link, command-buffer-scheduled presentation, two pending frames, a first-frame completion/presentation barrier, a watchdog, a persistent interrupted-session marker, and awaited surface retirement. These changes have not yet proven the incident resolved. [Acceptance remains blocked](release/acceptance.json).
 
+The [latest capture-scheduling record](release/2026-09-11-capture-scheduling.md) includes a passing 30-second synthetic 60 fps run, a failed 120 fps recheck, failed live-capture runs, and recovered Metal System Trace evidence. An unchanged-pixel live baseline also failed pacing. The unsuccessful clock experiments were removed; none of these results establish full-screen recovery.
+
 ## Safe source and package checks
 
 ```sh
@@ -39,5 +41,9 @@ Record summaries and technical timing JSON under `docs/release/` only after insp
 Use Instruments **Metal System Trace** on the designated test machine if presentation deadlines still fail. Compare capture arrival, CPU encoding, GPU queue delay/execution, and actual presentation separately. A short GPU execution time alone does not demonstrate display smoothness.
 
 An explicitly authorized windowed run can start with `--presentation-check --allow-visible-test --fps 60 --duration 5`. The diagnostic includes a bounded `frameTimings` journal: requested display time, drawable acquisition, encoding/submission, GPU start/end, and actual presentation, correlated by frame ID even when callbacks arrive out of order. This journal is disabled during normal use and contains no screen content. Stop on graphics failures or failed presentation gates before escalating test duration or refresh rate.
+
+The diagnostic reserves Esc before showing its window and fails closed if registration is unavailable. Focused-window Escape, the close button, and the duration limit remain available. Verify key delivery physically; successful registration alone is not that test.
+
+Add `--live-capture --capture-baseline` only to diagnose unchanged-pixel capture/display delivery without the blur/fold workload. The report identifies this as `live-capture-baseline`; it must never substitute for a moving effect acceptance run.
 
 Animation samples the display clock's target time. Continuous presentation requests a minimum frame duration from the previous actual presentation; the display pool has three drawables while at most two GPU submissions can be pending. This uses Apple's [`targetTimestamp`](https://developer.apple.com/documentation/quartzcore/cadisplaylink/targettimestamp) and [`present(_:afterMinimumDuration:)`](https://developer.apple.com/documentation/metal/mtlcommandbuffer/present(_:afterminimumduration:)) APIs. Source changes alone do not establish that a scheduling issue is fixed.

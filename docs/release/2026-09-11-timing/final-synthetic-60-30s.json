@@ -1,0 +1,58 @@
+{
+  "cancelled": false,
+  "drained": true,
+  "elapsedDuration": 30.59768233333307,
+  "gpuFailures": 0,
+  "mode": "synthetic",
+  "movingCaptureFixture": false,
+  "nativePixels": {
+    "height": 2234,
+    "width": 3456
+  },
+  "passesCadence": true,
+  "profiled": false,
+  "requestedDuration": 30,
+  "sourceCommit": "d406b9fe8e7d301b932711387183dec7e9e03925",
+  "stopReason": "completed",
+  "timing": {
+    "capture": {
+      "arrivalFPS": 0,
+      "dimensions": {
+        "height": 2234,
+        "width": 3456
+      },
+      "latestFrameAgeMS": 30973.184208332896,
+      "p95IntervalMS": 0,
+      "receivedFrames": 1,
+      "source": "synthetic"
+    },
+    "captureArrivalAgeMS": 15601.401129337557,
+    "completedFrames": 1825,
+    "cpuMS": 0.21952525112233345,
+    "gpuMS": 3.076125205470941,
+    "gpuQueueMS": 0.3340051580614758,
+    "preparationMS": 177.80466666772554,
+    "presentation": {
+      "duration": 30.14591287499934,
+      "frames": 1806,
+      "framesPerSecond": 59.87544671426838,
+      "medianIntervalMS": 16.6667083340144,
+      "missedDeadlineRatio": 0.005509641873278237,
+      "p95IntervalMS": 16.666791665556957
+    },
+    "presentationLeadMS": 12.512532146166162,
+    "renderedDimensions": {
+      "height": 2234,
+      "width": 3456
+    },
+    "schemaVersion": 1,
+    "skippedSubmissions": 0,
+    "targetFPS": 60
+  },
+  "warmupSeconds": 0.25,
+  "windowPoints": {
+    "height": 620,
+    "width": 960
+  },
+  "windowVisibleAtStop": true
+}

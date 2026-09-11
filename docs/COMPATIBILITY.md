@@ -4,7 +4,7 @@ The target is macOS 14 or later, with arm64 and x86_64 slices. Automatic effects
 
 | Configuration | Evidence | Current release status |
 | --- | --- | --- |
-| MacBookPro18,1, macOS 26.6.2 | Sensor and capture worked in earlier development; display interruptions were reported during testing | Current presentation implementation unverified; release blocked |
+| MacBookPro18,1, macOS 26.6.2 | Sensor and capture available; latest synthetic 60 fps run passed, live capture and 120 fps recheck failed pacing | Full-screen recovery unverified; release blocked. See [current evidence](release/2026-09-11-capture-scheduling.md). |
 | Apple silicon, macOS 14+ | Source target and cross-version availability checks | Physical validation pending |
 | Intel, macOS 14+ | x86_64 target builds; this is not an Intel hardware test | Sensor and physical rendering validation pending |
 | Additional ProMotion MacBook Pro | None recorded | Unverified |

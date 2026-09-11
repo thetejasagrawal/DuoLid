@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "version": "0.9.0-beta.1",
   "build": "90001",
-  "testedCommit": "5e02f98df405bd16204af1f3201aa4e078c4d377",
+  "testedCommit": "d406b9fe8e7d301b932711387183dec7e9e03925",
   "checks": {
     "strictBuildsAndTests": true,
     "pinkScreenIncidentResolved": false,
-    "syntheticPresentation60": false,
+    "syntheticPresentation60": true,
     "syntheticPresentation120WhereSupported": false,
     "livePresentation60": false,
     "livePresentation120WhereSupported": false,
@@ -20,11 +20,18 @@
   "evidence": [
     "docs/release/2026-09-11-local-checks.md",
     "https://github.com/thetejasagrawal/DuoLid/actions/runs/34527006636",
-    "docs/release/2026-09-11-windowed-checks.md"
+    "docs/release/2026-09-11-windowed-checks.md",
+    "docs/release/2026-09-11-rendering-refinement.md",
+    "docs/release/2026-09-11-capture-scheduling.md",
+    "docs/release/2026-09-11-timing/final-synthetic-60-30s.json",
+    "docs/release/2026-09-11-timing/final-synthetic-120-5s.json",
+    "https://github.com/thetejasagrawal/DuoLid/actions/runs/34578207545"
   ],
   "blockers": [
-    "Pink-screen reports and WindowServer watchdog timeouts during development; cause and live recovery have not been confirmed.",
-    "Two authorized five-second synthetic windowed checks at 60 fps failed the presentation gate. Longer, 120 fps, and live-capture checks remain unverified; the offscreen Instruments trace was unusable. Visible diagnostics remain opt-in.",
-    "Notarization credentials and quarantined installation/update acceptance are pending."
+    "The earlier pink-screen/WindowServer incident has not been validated through physical fold and recovery testing. Full-screen diagnostics remain suspended on the working Mac.",
+    "Synthetic 60 fps passed a new 30-second run. The latest 120 fps five-second run missed 1.071% of deadlines and was not extended. Earlier 120 fps success does not override this failed recheck.",
+    "Live capture still fails pacing: the 30-second 60 fps run missed 2.668% of deadlines. A later unchanged-pixel capture baseline also failed (5.479% missed, 25 ms p95, 0.824 ms average GPU time). Scheduling experiments did not resolve this and were reverted.",
+    "Full recovery, ordinary desktop use, accessibility, physical audio, quarantined installation, and signed-update acceptance require completion on a controlled test machine.",
+    "The DuoLid-notary Keychain profile is missing. Notarization and installation/update testing cannot proceed until the owner saves Apple credentials locally."
   ]
 }
