@@ -35,6 +35,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
     private let fps: Int
     private let duration: Double
     private let live: Bool
+    private let captureBaseline: Bool
     private let displayID: CGDirectDisplayID
     private var timer: Timer?
     private var timeoutTask: Task<Void, Never>?
@@ -71,6 +72,12 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
         fps = min(requested, max(1, screen.maximumFramesPerSecond))
         duration = bounded(Double(argument("--duration") ?? "30") ?? 30, 2...120, fallback: 30)
         live = args.contains("--live-capture")
+        captureBaseline = args.contains("--capture-baseline")
+        guard !captureBaseline || live else {
+            throw NSError(
+                domain: "DuoLid.Verification", code: 64,
+                userInfo: [NSLocalizedDescriptionKey: "--capture-baseline requires --live-capture."])
+        }
         let width = Int(screen.frame.width * screen.backingScaleFactor)
         let height = Int(screen.frame.height * screen.backingScaleFactor)
         frames = CapturedFrame(source: live ? .live : .synthetic)
@@ -221,7 +228,8 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             if let data = try? encoder.encode(
                 RunReport(
-                    mode: live ? "live-capture" : "synthetic", movingCaptureFixture: live,
+                    mode: captureBaseline ? "live-capture-baseline" : live ? "live-capture" : "synthetic",
+                    movingCaptureFixture: live,
                     captureExclusion: captureExclusion,
                     requestedCaptureDimensions: requestedCaptureDimensions,
                     cancelled: cancelled,
@@ -265,7 +273,10 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
         var settings = DuoSettings()
         settings.glowEnabled = true
         let elapsed = CACurrentMediaTime() - startedAt
-        renderer.update(angle: 34 + sin(elapsed * 2.4) * 18, settings: settings, reduceMotion: false)
+        // The baseline leaves captured pixels unchanged. It isolates capture and
+        // display delivery from the blur/fold workload; it is not an effect gate.
+        let angle = captureBaseline ? settings.clearAngle + 20 : 34 + sin(elapsed * 2.4) * 18
+        renderer.update(angle: angle, settings: settings, reduceMotion: false)
     }
 
     private static func syntheticBuffer(width: Int, height: Int) throws -> CVPixelBuffer {
