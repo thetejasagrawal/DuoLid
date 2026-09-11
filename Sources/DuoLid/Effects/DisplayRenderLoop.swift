@@ -19,18 +19,10 @@ final class DisplayRenderLoop: NSObject, CAMetalDisplayLinkDelegate, @unchecked 
     // Accessed only by the display thread.
     private var link: CAMetalDisplayLink?
     private var adaptive: AdaptiveCadence
-    private var cadence: RenderCadence
     private var automatic: Bool
     private let onCadenceChange: (@MainActor @Sendable (Int) -> Void)?
     private var lastCadenceCheck = 0.0
     var framesPerSecond: Int { lock.withLock { Int(fps) } }
-    private let maximumFramesPerSecond: Int
-    var displayLinkFramesPerSecond: Int {
-        lock.withLock {
-            RenderCadence(maximumFramesPerSecond: maximumFramesPerSecond, framesPerSecond: Int(fps))
-                .clockFramesPerSecond
-        }
-    }
 
     @MainActor
     init(
@@ -39,10 +31,7 @@ final class DisplayRenderLoop: NSObject, CAMetalDisplayLinkDelegate, @unchecked 
     ) {
         self.renderer = renderer
         self.layer = layer
-        let cadence = RenderCadence(maximumFramesPerSecond: screen.maximumFramesPerSecond, framesPerSecond: fps)
-        self.cadence = cadence
-        maximumFramesPerSecond = cadence.maximumFramesPerSecond
-        self.fps = Float(cadence.framesPerSecond)
+        self.fps = Float(min(fps, max(1, screen.maximumFramesPerSecond)))
         self.automatic = automatic
         self.onCadenceChange = onCadenceChange
         adaptive = AdaptiveCadence(framesPerSecond: fps)
@@ -134,12 +123,6 @@ final class DisplayRenderLoop: NSObject, CAMetalDisplayLinkDelegate, @unchecked 
         let rate = lock.withLock { fps }
         renderer.targetFPS = Double(rate)
         adaptive = AdaptiveCadence(framesPerSecond: Int(rate))
-        cadence.select(Int(rate))
-        applyDisplayClock()
-    }
-
-    private func applyDisplayClock() {
-        let rate = Float(cadence.clockFramesPerSecond)
         link?.preferredFrameRateRange = CAFrameRateRange(minimum: rate, maximum: rate, preferred: rate)
     }
 
@@ -178,9 +161,7 @@ final class DisplayRenderLoop: NSObject, CAMetalDisplayLinkDelegate, @unchecked 
             // Core Animation supplies an available drawable and its own timing.
             // Waiting for nextDrawable() on a separate clock couples capture's
             // compositor work to the animation and can produce late 8/25 ms pairs.
-            if cadence.shouldRender(at: update.targetPresentationTimestamp) {
-                renderer.draw(update: update)
-            }
+            renderer.draw(update: update)
             let now = CACurrentMediaTime()
             if now - lastCadenceCheck >= 0.25 {
                 lastCadenceCheck = now
@@ -190,8 +171,8 @@ final class DisplayRenderLoop: NSObject, CAMetalDisplayLinkDelegate, @unchecked 
                 {
                     lock.withLock { fps = Float(rate) }
                     renderer.targetFPS = Double(rate)
-                    cadence.select(rate)
-                    applyDisplayClock()
+                    link.preferredFrameRateRange = CAFrameRateRange(
+                        minimum: Float(rate), maximum: Float(rate), preferred: Float(rate))
                     let notify = onCadenceChange
                     Task { @MainActor in notify?(rate) }
                 }
