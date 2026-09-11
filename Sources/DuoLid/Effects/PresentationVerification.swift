@@ -206,6 +206,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             struct RunReport: Encodable {
                 let mode: String
                 let movingCaptureFixture: Bool
+                let displayLinkFramesPerSecond: Int
                 let captureExclusion: CaptureExclusion?
                 let requestedCaptureDimensions: PixelSize?
                 let cancelled: Bool
@@ -222,6 +223,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             if let data = try? encoder.encode(
                 RunReport(
                     mode: live ? "live-capture" : "synthetic", movingCaptureFixture: live,
+                    displayLinkFramesPerSecond: loop.displayLinkFramesPerSecond,
                     captureExclusion: captureExclusion,
                     requestedCaptureDimensions: requestedCaptureDimensions,
                     cancelled: cancelled,
