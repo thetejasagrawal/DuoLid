@@ -164,16 +164,8 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             content: content, display: display, outputWindowNumber: window.windowNumber,
             includingOwnWindows: fixtureWindows)
         captureExclusion = exclusion
-        let configuration = SCStreamConfiguration()
-        configuration.width = Int((filter.contentRect.width * CGFloat(filter.pointPixelScale)).rounded())
-        configuration.height = Int((filter.contentRect.height * CGFloat(filter.pointPixelScale)).rounded())
+        let configuration = CaptureConfiguration.make(filter: filter, framesPerSecond: fps)
         requestedCaptureDimensions = PixelSize(width: configuration.width, height: configuration.height)
-        configuration.pixelFormat = kCVPixelFormatType_32BGRA
-        configuration.minimumFrameInterval = CMTime(value: 1, timescale: Int32(fps))
-        configuration.queueDepth = 4
-        configuration.showsCursor = false
-        configuration.capturesAudio = false
-        configuration.colorSpaceName = CGColorSpace.sRGB
         let receiver = StreamReceiver(frames: frames) { [weak self] _ in
             Task { @MainActor in self?.finish(reason: .captureFailure) }
         }

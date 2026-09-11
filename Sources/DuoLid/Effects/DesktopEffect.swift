@@ -238,18 +238,9 @@ final class DesktopEffect {
             let (filter, _) = try CaptureFilter.make(
                 content: content, display: display, outputWindowNumber: panel.windowNumber,
                 includingOwnWindows: settingsWindows)
-            let configuration = SCStreamConfiguration()
             // CGDisplayPixelsWide can report logical pixels in a Retina display mode.
             // ScreenCaptureKit's filter describes the actual capture backing scale.
-            configuration.width = Int((filter.contentRect.width * CGFloat(filter.pointPixelScale)).rounded())
-            configuration.height = Int((filter.contentRect.height * CGFloat(filter.pointPixelScale)).rounded())
-            configuration.pixelFormat = kCVPixelFormatType_32BGRA
-            configuration.minimumFrameInterval = CMTime(value: 1, timescale: Int32(fps))
-            // Two GPU readers, a latest-frame slot, and one capture producer.
-            configuration.queueDepth = 4
-            configuration.showsCursor = false
-            configuration.capturesAudio = false
-            configuration.colorSpaceName = CGColorSpace.sRGB
+            let configuration = CaptureConfiguration.make(filter: filter, framesPerSecond: fps)
             RenderLog.logger.notice("Capture configured: \(configuration.width)×\(configuration.height), \(fps) fps")
             let receiver = StreamReceiver(frames: frames) { [weak self] error in
                 Task { @MainActor in
