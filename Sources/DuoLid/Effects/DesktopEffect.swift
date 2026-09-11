@@ -231,14 +231,13 @@ final class DesktopEffect {
                     domain: "DuoLid", code: 1,
                     userInfo: [NSLocalizedDescriptionKey: "The built-in display is unavailable."])
             }
-            let ownApps = content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }
             // Retain the settings window in the image while always excluding all overlays.
             let settingsWindows = content.windows.filter {
                 $0.owningApplication?.processID == ProcessInfo.processInfo.processIdentifier && $0.title == "DuoLid"
             }
-            let filter = SCContentFilter(
-                display: display, excludingApplications: ownApps, exceptingWindows: settingsWindows)
-            if #available(macOS 14.2, *) { filter.includeMenuBar = true }
+            let (filter, _) = try CaptureFilter.make(
+                content: content, display: display, outputWindowNumber: panel.windowNumber,
+                includingOwnWindows: settingsWindows)
             let configuration = SCStreamConfiguration()
             // CGDisplayPixelsWide can report logical pixels in a Retina display mode.
             // ScreenCaptureKit's filter describes the actual capture backing scale.

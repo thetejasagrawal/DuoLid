@@ -42,6 +42,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
     private var stream: SCStream?
     private var receiver: StreamReceiver?
     private var fixture: PresentationFixture?
+    private var captureExclusion: CaptureExclusion?
     private var escapeMonitor: Any?
     private var startedAt = 0.0
     private var finishing = false
@@ -151,11 +152,12 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
         guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
             throw RenderError.unavailable
         }
-        let ownApps = content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }
         let fixtureWindows = content.windows.filter { Int($0.windowID) == fixture?.window.windowNumber }
         guard fixtureWindows.count == 1 else { throw RenderError.unavailable }
-        let filter = SCContentFilter(display: display, excludingApplications: ownApps, exceptingWindows: fixtureWindows)
-        if #available(macOS 14.2, *) { filter.includeMenuBar = true }
+        let (filter, exclusion) = try CaptureFilter.make(
+            content: content, display: display, outputWindowNumber: window.windowNumber,
+            includingOwnWindows: fixtureWindows)
+        captureExclusion = exclusion
         let configuration = SCStreamConfiguration()
         configuration.width = Int((filter.contentRect.width * CGFloat(filter.pointPixelScale)).rounded())
         configuration.height = Int((filter.contentRect.height * CGFloat(filter.pointPixelScale)).rounded())
@@ -205,6 +207,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             struct RunReport: Encodable {
                 let mode: String
                 let movingCaptureFixture: Bool
+                let captureExclusion: CaptureExclusion?
                 let cancelled: Bool
                 let stopReason: StopReason
                 let windowVisibleAtStop: Bool
@@ -219,6 +222,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             if let data = try? encoder.encode(
                 RunReport(
                     mode: live ? "live-capture" : "synthetic", movingCaptureFixture: live,
+                    captureExclusion: captureExclusion,
                     cancelled: cancelled,
                     stopReason: reason, windowVisibleAtStop: visibleAtStop,
                     requestedDuration: duration, elapsedDuration: elapsed,
