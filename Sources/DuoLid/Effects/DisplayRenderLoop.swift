@@ -142,7 +142,7 @@ final class DisplayRenderLoop: NSObject, @unchecked Sendable {
     @objc private func tick(_ link: CADisplayLink) {
         guard !lock.withLock({ stopped }) else { return }
         autoreleasepool {
-            renderer.draw(to: layer, at: link.targetTimestamp)
+            renderer.draw(to: layer, at: link.targetTimestamp, minimumDuration: 1 / Double(lock.withLock { fps }))
             let now = CACurrentMediaTime()
             if now - lastCadenceCheck >= 0.25 {
                 lastCadenceCheck = now

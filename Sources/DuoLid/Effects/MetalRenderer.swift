@@ -291,7 +291,10 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
     }
 
     /// Called only on the dedicated render queue. No AppKit or SwiftUI work runs here.
-    func draw(to layer: CAMetalLayer, at presentationTime: CFTimeInterval = CACurrentMediaTime()) {
+    func draw(
+        to layer: CAMetalLayer, at presentationTime: CFTimeInterval = CACurrentMediaTime(),
+        minimumDuration: CFTimeInterval? = nil
+    ) {
         guard frames.get() != nil else { return }
         guard inFlight.wait(timeout: .now()) == .success else {
             statistics.skip()
@@ -302,10 +305,13 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
             inFlight.signal()
             return
         }
-        draw(drawable: drawable, at: presentationTime, requestedAt: requestedAt)
+        draw(drawable: drawable, at: presentationTime, requestedAt: requestedAt, minimumDuration: minimumDuration)
     }
 
-    private func draw(drawable: CAMetalDrawable, at presentationTime: CFTimeInterval, requestedAt: CFTimeInterval) {
+    private func draw(
+        drawable: CAMetalDrawable, at presentationTime: CFTimeInterval, requestedAt: CFTimeInterval,
+        minimumDuration: CFTimeInterval?
+    ) {
         let began = CACurrentMediaTime()
         var committed = false
         defer { if !committed { inFlight.signal() } }
@@ -367,10 +373,12 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         // Present only once Metal has scheduled the writes to this drawable.
         // Calling drawable.present() immediately after commit can race scheduling
         // and expose an unwritten surface.
-        // Animation and presentation share the display link's target. Presenting
-        // early can alternate short and long intervals on a ProMotion display,
-        // even when the average frame rate and GPU execution time look healthy.
-        if presentationTime.isFinite, presentationTime > submitted {
+        // Base continuous frame pacing on the previous actual presentation. This
+        // prevents 8.3/25 ms pairs at a 60 fps target on a 120 Hz compositor.
+        // Animation still samples the display link's predicted target time.
+        if let minimumDuration, minimumDuration.isFinite, minimumDuration > 0 {
+            command.present(drawable, afterMinimumDuration: minimumDuration)
+        } else if presentationTime.isFinite, presentationTime > submitted {
             command.present(drawable, atTime: presentationTime)
         } else {
             command.present(drawable)
