@@ -43,6 +43,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
     private var receiver: StreamReceiver?
     private var fixture: PresentationFixture?
     private var captureExclusion: CaptureExclusion?
+    private var requestedCaptureDimensions: PixelSize?
     private var escapeMonitor: Any?
     private var startedAt = 0.0
     private var finishing = false
@@ -161,6 +162,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
         let configuration = SCStreamConfiguration()
         configuration.width = Int((filter.contentRect.width * CGFloat(filter.pointPixelScale)).rounded())
         configuration.height = Int((filter.contentRect.height * CGFloat(filter.pointPixelScale)).rounded())
+        requestedCaptureDimensions = PixelSize(width: configuration.width, height: configuration.height)
         configuration.pixelFormat = kCVPixelFormatType_32BGRA
         configuration.minimumFrameInterval = CMTime(value: 1, timescale: Int32(fps))
         configuration.queueDepth = 4
@@ -208,6 +210,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
                 let mode: String
                 let movingCaptureFixture: Bool
                 let captureExclusion: CaptureExclusion?
+                let requestedCaptureDimensions: PixelSize?
                 let cancelled: Bool
                 let stopReason: StopReason
                 let windowVisibleAtStop: Bool
@@ -223,6 +226,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
                 RunReport(
                     mode: live ? "live-capture" : "synthetic", movingCaptureFixture: live,
                     captureExclusion: captureExclusion,
+                    requestedCaptureDimensions: requestedCaptureDimensions,
                     cancelled: cancelled,
                     stopReason: reason, windowVisibleAtStop: visibleAtStop,
                     requestedDuration: duration, elapsedDuration: elapsed,

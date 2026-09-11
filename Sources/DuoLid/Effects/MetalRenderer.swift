@@ -22,6 +22,7 @@ final class RenderStatistics: @unchecked Sendable {
     private var gpuTime = 0.0, arrivalAge = 0.0, cpuTime = 0.0
     private var presentationLead = 0.0, queueWait = 0.0
     private var preparationMS: Double?
+    private var renderedDimensions: PixelSize?
     private var timestamps: [Double] = []
     private var writeIndex = 0
     private var pending: [UInt64: Double] = [:]
@@ -60,6 +61,9 @@ final class RenderStatistics: @unchecked Sendable {
     }
     func skip() { lock.withLock { skipped += 1 } }
     func prepared(in seconds: Double) { lock.withLock { preparationMS = seconds * 1_000 } }
+    func rendered(width: Int, height: Int) {
+        lock.withLock { renderedDimensions = PixelSize(width: width, height: height) }
+    }
     func record(gpu: Double, age: Double, cpu: Double, lead: Double, wait: Double) {
         lock.withLock {
             count += 1
@@ -79,7 +83,7 @@ final class RenderStatistics: @unchecked Sendable {
                 gpuQueueMS: queueWait * scale, captureArrivalAgeMS: arrivalAge * scale,
                 presentationLeadMS: presentationLead * scale,
                 presentation: PresentationTiming(timestamps: timestamps, targetFPS: targetFPS, warmup: warmup),
-                capture: frames.timing(), preparationMS: preparationMS)
+                capture: frames.timing(), preparationMS: preparationMS, renderedDimensions: renderedDimensions)
         }
     }
     func recentTimestamps(since time: Double) -> [Double] {
@@ -98,12 +102,13 @@ final class CapturedFrame: @unchecked Sendable {
     private let source: CaptureTiming.Source
     private var arrivals: [Double] = []
     private var received = 0
+    private var dimensions: PixelSize?
     init(source: CaptureTiming.Source = .synthetic) { self.source = source }
     func timing() -> CaptureTiming {
         lock.withLock {
             CaptureTiming(
                 source: source, receivedFrames: received, timestamps: arrivals,
-                now: ProcessInfo.processInfo.systemUptime)
+                now: ProcessInfo.processInfo.systemUptime, dimensions: dimensions)
         }
     }
     private let lock = NSLock()
@@ -113,6 +118,7 @@ final class CapturedFrame: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         self.buffer = buffer
+        dimensions = PixelSize(width: CVPixelBufferGetWidth(buffer), height: CVPixelBufferGetHeight(buffer))
         timestamp = ProcessInfo.processInfo.systemUptime
         if arrivals.count < 512 { arrivals.append(timestamp) } else { arrivals[received % 512] = timestamp }
         received += 1
@@ -351,6 +357,7 @@ final class MetalRenderer: NSObject, @unchecked Sendable {
         guard encodeEffect(command: command, source: source, target: drawable.texture, state: snapshot) else { return }
         let semaphore = inFlight
         let statistics = statistics
+        statistics.rendered(width: drawable.texture.width, height: drawable.texture.height)
         submissionID &+= 1
         let id = submissionID
         drawable.addPresentedHandler { drawable in statistics.presented(id: id, at: drawable.presentedTime) }

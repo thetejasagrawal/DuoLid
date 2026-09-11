@@ -1,5 +1,14 @@
 import Foundation
 
+public struct PixelSize: Codable, Sendable {
+    public let width: Int
+    public let height: Int
+    public init(width: Int, height: Int) {
+        self.width = width
+        self.height = height
+    }
+}
+
 public struct CaptureTiming: Codable, Sendable {
     public enum Source: String, Codable, Sendable { case synthetic, live }
     public let source: Source
@@ -7,9 +16,11 @@ public struct CaptureTiming: Codable, Sendable {
     public let arrivalFPS: Double
     public let p95IntervalMS: Double
     public let latestFrameAgeMS: Double
-    public init(source: Source, receivedFrames: Int, timestamps: [Double], now: Double) {
+    public let dimensions: PixelSize?
+    public init(source: Source, receivedFrames: Int, timestamps: [Double], now: Double, dimensions: PixelSize? = nil) {
         self.source = source
         self.receivedFrames = receivedFrames
+        self.dimensions = dimensions
         let timing = PresentationTiming(timestamps: timestamps, targetFPS: 120, warmup: 0)
         arrivalFPS = timing.framesPerSecond
         p95IntervalMS = timing.p95IntervalMS
@@ -61,13 +72,15 @@ public struct PerformanceReport: Codable, Sendable {
     public let presentation: PresentationTiming
     public let capture: CaptureTiming?
     public let preparationMS: Double?
+    public let renderedDimensions: PixelSize?
     public var passesCadence: Bool { presentation.passes(targetFPS: targetFPS) }
 
     public init(
         targetFPS: Double, completedFrames: Int, skippedSubmissions: Int,
         gpuMS: Double, cpuMS: Double, gpuQueueMS: Double,
         captureArrivalAgeMS: Double, presentationLeadMS: Double,
-        presentation: PresentationTiming, capture: CaptureTiming? = nil, preparationMS: Double? = nil
+        presentation: PresentationTiming, capture: CaptureTiming? = nil, preparationMS: Double? = nil,
+        renderedDimensions: PixelSize? = nil
     ) {
         schemaVersion = 1
         self.targetFPS = targetFPS
@@ -81,5 +94,6 @@ public struct PerformanceReport: Codable, Sendable {
         self.presentation = presentation
         self.capture = capture
         self.preparationMS = preparationMS
+        self.renderedDimensions = renderedDimensions
     }
 }
