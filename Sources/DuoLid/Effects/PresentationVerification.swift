@@ -24,6 +24,10 @@ enum PresentationVerification {
 
 @MainActor
 private final class PresentationSession: NSObject, NSApplicationDelegate, NSWindowDelegate {
+    private enum StopReason: String, Encodable {
+        case completed, escape, windowClosed, applicationQuit, windowOccluded
+        case graphicsStall, graphicsFailure, captureFailure, startupFailure
+    }
     private let renderer: MetalRenderer
     private let window: NSWindow
     private let loop: DisplayRenderLoop
@@ -99,14 +103,14 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
         loop = DisplayRenderLoop(renderer: renderer, layer: layer, screen: screen, fps: fps)
         super.init()
         window.delegate = self
-        renderer.onFailure = { [weak self] _ in self?.finish(cancelled: true) }
+        renderer.onFailure = { [weak self] _ in self?.finish(reason: .graphicsFailure) }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         window.makeKeyAndOrderFront(nil)
         escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 {
-                MainActor.assumeIsolated { self?.finish(cancelled: true) }
+                MainActor.assumeIsolated { self?.finish(reason: .escape) }
                 return nil
             }
             return event
@@ -125,9 +129,9 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
                 RunLoop.main.add(timer, forMode: .common)
                 timeoutTask = Task { [self] in
                     try? await Task.sleep(for: .seconds(duration))
-                    if !Task.isCancelled { finish(cancelled: false) }
+                    if !Task.isCancelled { finish(reason: .completed) }
                 }
-            } catch { finish(cancelled: true) }
+            } catch { finish(reason: .startupFailure) }
         }
     }
 
@@ -150,7 +154,7 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
         configuration.capturesAudio = false
         configuration.colorSpaceName = CGColorSpace.sRGB
         let receiver = StreamReceiver(frames: frames) { [weak self] _ in
-            Task { @MainActor in self?.finish(cancelled: true) }
+            Task { @MainActor in self?.finish(reason: .captureFailure) }
         }
         let stream = SCStream(filter: filter, configuration: configuration, delegate: receiver)
         try stream.addStreamOutput(
@@ -161,9 +165,12 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
         try await stream.startOnMainActor()
     }
 
-    private func finish(cancelled: Bool) {
+    private func finish(reason: StopReason) {
         guard !finishing else { return }
         finishing = true
+        let cancelled = reason != .completed
+        let visibleAtStop = window.occlusionState.contains(.visible)
+        let elapsed = startedAt > 0 ? CACurrentMediaTime() - startedAt : 0
         window.orderOut(nil)
         timer?.invalidate()
         timer = nil
@@ -185,6 +192,10 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             struct RunReport: Encodable {
                 let mode: String
                 let cancelled: Bool
+                let stopReason: StopReason
+                let windowVisibleAtStop: Bool
+                let requestedDuration: Double
+                let elapsedDuration: Double
                 let drained: Bool
                 let timing: PerformanceReport
                 let frameTimings: [RenderFrameTiming]
@@ -193,7 +204,10 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             if let data = try? encoder.encode(
                 RunReport(
-                    mode: live ? "live-capture" : "synthetic", cancelled: cancelled, drained: drained, timing: report,
+                    mode: live ? "live-capture" : "synthetic", cancelled: cancelled,
+                    stopReason: reason, windowVisibleAtStop: visibleAtStop,
+                    requestedDuration: duration, elapsedDuration: elapsed,
+                    drained: drained, timing: report,
                     frameTimings: renderer.statistics.frameTimings()))
             {
                 FileHandle.standardOutput.write(data)
@@ -204,18 +218,26 @@ private final class PresentationSession: NSObject, NSApplicationDelegate, NSWind
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        finish(cancelled: true)
+        finish(reason: .windowClosed)
         return false
     }
+
+    func windowDidChangeOcclusionState(_ notification: Notification) {
+        // WindowServer may stop presenting completely covered windows. That is
+        // an interrupted measurement, not evidence of a failing GPU or cadence.
+        guard startedAt > 0, !window.occlusionState.contains(.visible) else { return }
+        finish(reason: .windowOccluded)
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        finish(cancelled: true)
+        finish(reason: .applicationQuit)
         return .terminateCancel
     }
 
     private func update() {
         guard !finishing else { return }
         if renderer.statistics.isStalled(at: CACurrentMediaTime()) {
-            finish(cancelled: true)
+            finish(reason: window.occlusionState.contains(.visible) ? .graphicsStall : .windowOccluded)
             return
         }
         var settings = DuoSettings()
