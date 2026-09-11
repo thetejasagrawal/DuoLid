@@ -14,10 +14,10 @@ test -z "$(git diff --name-only "$commit" HEAD -- Sources Resources Package.swif
 if gh release view "v$version" --repo thetejasagrawal/DuoLid >/dev/null 2>&1; then
     echo 'This version already exists. Published artifacts are immutable; use a higher version/build.' >&2; exit 1
 fi
-if [ -f site/release.json ]; then
+if [ -f updates/release.json ]; then
     python3 - "$build" <<'PY'
 import json, sys
-current = json.load(open('site/release.json'))
+current = json.load(open('updates/release.json'))
 assert int(sys.argv[1]) > int(current.get('build', 0)), 'Build number must increase monotonically'
 PY
 fi
@@ -34,17 +34,19 @@ trap 'rm -rf "$verification"' EXIT
 gh release download "v$version" --repo thetejasagrawal/DuoLid --dir "$verification"
 for asset in "DuoLid-$version.dmg" "DuoLid-$version.zip" SHA256SUMS provenance.json appcast.xml; do cmp "$candidate/$asset" "$verification/$asset"; done
 gh release edit "v$version" --repo thetejasagrawal/DuoLid --draft=false
-# Only now publish the exact signed feed and point the website at existing assets.
-cp "$candidate/appcast.xml" site/appcast.xml
+# Only now publish the exact signed feed and activate the README download button.
+cp "$candidate/appcast.xml" updates/appcast.xml
 python3 - "$version" "$build" <<'PY'
 import json, pathlib, sys
 version, build = sys.argv[1:]
-pathlib.Path('site/release.json').write_text(json.dumps({
+pathlib.Path('updates/release.json').write_text(json.dumps({
     'status': 'available', 'version': version, 'build': int(build), 'beta': '-beta' in version,
     'download': f'https://github.com/thetejasagrawal/DuoLid/releases/download/v{version}/DuoLid-{version}.dmg',
     'notes': f'https://github.com/thetejasagrawal/DuoLid/releases/tag/v{version}'
 }, indent=2) + '\n')
 PY
-git add site/appcast.xml site/release.json
+python3 scripts/readme-release.py --write
+python3 scripts/check-repository.py
+git add updates/appcast.xml updates/release.json README.md
 git commit -m "Publish DuoLid $version download and signed update feed"
 git push origin main

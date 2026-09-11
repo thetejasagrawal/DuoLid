@@ -50,12 +50,12 @@ Record the tested commit, evidence and results in `docs/release/acceptance.json`
 bash scripts/publish-release.sh dist/candidates/0.9.0-beta.1-90001
 ```
 
-The script tags the candidate commit, creates a draft prerelease, uploads the verified DMG/ZIP/checksums/provenance/appcast, downloads and compares those assets, and makes the release public. Only then does it commit the exact signed appcast and the website's explicit versioned download URL. GitHub Pages deploys the separate `site/` directory. The beta does not use `/releases/latest`, which excludes prereleases.
+The script tags the candidate commit, creates a draft prerelease, uploads the verified DMG/ZIP/checksums/provenance/appcast, downloads and compares those assets, and makes the release public. Only then does it copy the exact signed feed to `updates/appcast.xml`, write `updates/release.json`, and activate the README's versioned download button. Sparkle fetches the feed from `https://raw.githubusercontent.com/thetejasagrawal/DuoLid/main/updates/appcast.xml`. The beta does not use `/releases/latest`, which excludes prereleases.
 
-All signing remains local. GitHub Actions receives no private keys or notarization credentials. CI builds/tests Apple silicon and Intel and deploys static website files.
+All signing remains local. GitHub Actions receives no private keys or notarization credentials. CI builds/tests Apple silicon and Intel and validates README assets and download links. There is no landing page or GitHub Pages deployment.
 
 ## Channels and withdrawal
 
 The single appcast has a `beta` channel; the unchanneled default is stable. Beta builds opt into beta updates initially; stable builds require the user's beta preference. Stable entries remain visible to both. Automatic checks are opt-in, system profiling is disabled, and installation requires user interaction.
 
-To withdraw a release, remove its item from the feed, regenerate the feed signature, restore the previous explicit website download metadata, and deploy. Preserve published artifacts and history. Correct installed users with a newly signed release whose build number is higher. Do not reuse an existing archive URL with changed bytes.
+To withdraw a release, remove its item from the feed, regenerate the feed signature, restore the previous version in `updates/release.json`, run `python3 scripts/readme-release.py --write`, and commit/push the feed, metadata, and README. Preserve published artifacts and history. Correct installed users with a newly signed release whose build number is higher. Do not reuse an existing archive URL with changed bytes.

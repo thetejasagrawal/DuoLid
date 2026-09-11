@@ -1,7 +1,7 @@
 import Foundation
 
 public enum UpdatePolicy {
-    public static let feedURL = "https://thetejasagrawal.github.io/DuoLid/appcast.xml"
+    public static let feedURL = "https://raw.githubusercontent.com/thetejasagrawal/DuoLid/main/updates/appcast.xml"
     public static let repositoryURL = "https://github.com/thetejasagrawal/DuoLid"
     public static func allowedChannels(version: String, betaPreference: Bool?) -> Set<String> {
         let beta = betaPreference ?? version.contains("-beta")

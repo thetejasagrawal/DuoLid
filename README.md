@@ -1,67 +1,112 @@
-# DuoLid
+<p align="center">
+  <img src="docs/assets/icon.png" width="112" height="112" alt="DuoLid app icon">
+</p>
+<h1 align="center">DuoLid</h1>
+<p align="center">A softer landing for your MacBook.</p>
+<p align="center"><sub>Native macOS app · Apple silicon &amp; Intel · Open source · MIT</sub></p>
 
-A native macOS menu-bar app that gives your MacBook a softer landing: progressive desktop blur as the lid closes, a bottom-anchored folding frame, soft edge bleed, an original magnetic opening click, and optional colorful corner glow.
+<!-- DUOLID-DOWNLOAD:START -->
+<p align="center">
+  <img src="docs/assets/download-soon.svg" width="248" height="52" alt="DuoLid beta download is not available yet">
+</p>
+<p align="center"><sub>0.9.0-beta.1 is in preparation. <a href="#availability">Release status</a> · <a href="https://github.com/thetejasagrawal/DuoLid/releases">All releases</a></sub></p>
+<!-- DUOLID-DOWNLOAD:END -->
 
-**Status: beta in preparation.** The first planned release is **0.9.0-beta.1**. No production download is published yet. A reported pink-screen/WindowServer interruption is an open release blocker; the new presentation path still needs controlled live validation. See [release acceptance](docs/release/acceptance.json). A successful source build is not evidence that those gates passed.
+<p align="center">
+  <a href="#make-it-yours">Customize</a> ·
+  <a href="#get-started">Get started</a> ·
+  <a href="docs/COMPATIBILITY.md">Compatibility</a> ·
+  <a href="#build-from-source">Build from source</a>
+</p>
 
-[Website](https://thetejasagrawal.github.io/DuoLid/) · [Compatibility](docs/COMPATIBILITY.md) · [Contributing](CONTRIBUTING.md) · [Verification](docs/VERIFICATION.md)
+<p align="center">
+  <a href="docs/assets/duolid-demo.mp4"><img src="docs/assets/fold.png" width="900" height="581" alt="DuoLid folds the desktop toward its bottom edge, leaving soft pastel light above the screen"></a>
+</p>
+<p align="center"><sub><a href="docs/assets/duolid-demo.mp4">Watch the four-second demo</a> · Synthetic content rendered by DuoLid. An appearance preview, not a live performance measurement.</sub></p>
 
-## Use DuoLid
+As you lower the lid, blur travels from the top of the screen to the bottom. The desktop folds toward its lower edge, with a soft spill of light into the space behind it. Open the MacBook and a small magnetic click completes the motion.
 
-Requires **macOS 14+**. The app builds for both Apple silicon and Intel. Automatic effects require a compatible lid-angle sensor; unsupported hardware receives a sample preview and a clear sensor status. A universal binary does not imply every MacBook exposes that sensor.
+DuoLid lives in the menu bar. At your normal open angle, the effect disappears and capture stops after its brief preparation period.
 
-When a verified release is available, move DuoLid to Applications and allow Screen Recording in Settings. If macOS requests it, quit and reopen the app. The sample preview requires no screen access. Close the settings window to leave DuoLid in the menu bar.
+## Make it yours
 
-The effect starts below **62°** by default. The start-angle slider, degree field, stepper, and **Use 62°** reset stay in the main workspace. At or above your chosen angle, the visible effect is removed. Capture prepares briefly while a closing lid approaches that angle, then stops if you reopen or hold above it.
+| Control | Your choice |
+| :--- | :--- |
+| **When it begins** | Starts at **62°** by default. Adjust the slider, type an angle, or use the current lid position. |
+| **Blur & fold** | Duo, Frost, or Quiet. Tune blur strength, fold depth, shadow, and smoothing. |
+| **Light & color** | Soft edge bleed works on its own. Optional colorful glow adds four palettes, brightness, spread, and corner placement. **Color is off by default.** |
+| **Opening sound** | Magnetic, Soft, or Crisp. Adjust volume, listen to a sample, or switch it off. |
+| **Motion** | Automatic, 60 fps, or 120 fps, limited by the display. Automatic can settle at 60 for a busy fold. An optional Low Power setting uses 30 fps. |
 
-- **Lid effect:** Duo, Frost, or Quiet; blur strength and start angle.
-- **Colorful glow:** optional and off by default; Aurora, Prism, Sunset, or Ocean palettes. Brightness controls color; Edge bleed controls soft light spilling into black and works independently of colorful glow.
-- **Opening sound:** Magnetic, Soft, or Crisp; separate toggle, volume, and Listen button.
-- **More tuning:** fold depth, shadow, smoothing, Automatic / 60 / 120 fps, glow spread and corners. Automatic targets the display's refresh rate up to 120 fps and can step down to 60 for a busy fold. Low Power Mode can use 30 fps.
-- **Settings:** sensor, Screen Recording, capture and graphics status, launch at login, appearance, Reduce Motion, update preferences, and technical diagnostics.
-- **Preview:** choose an angle or animate synthetic content. Desktop testing is separate and needs screen access.
-- **Pause:** the title-bar switch, menu bar, **Control–Option–Command–D**, or **Esc** during a visible desktop effect.
+<p align="center">
+  <img src="docs/assets/workspace.png" width="900" height="631" alt="DuoLid's native settings window with the angle preview, blur, edge bleed, glow, and sound controls together">
+</p>
 
-Changes save automatically. Updates preserve the production identifier `app.duolid.DuoLid` and existing settings, including individually disabled sound and glow.
+Preferences save automatically. Individually disabled sound and glow stay disabled after updates. Appearance, launch at login, Reduce Motion, and update preferences live in Settings.
 
-## Build and test
+## Get started
 
-Use Xcode with the Swift 6 toolchain. Sparkle **2.9.6** is the only third-party package and is pinned in `Package.resolved`.
+1. Download the verified build above when available, then drag **DuoLid** into **Applications**.
+2. Open DuoLid and check its sensor and graphics status.
+3. Allow **Screen Recording** for the desktop effect. If macOS asks, quit and reopen DuoLid.
+4. Try the sample preview, adjust your starting angle, then close the settings window to keep DuoLid in the menu bar.
+
+**Pause immediately:** use the menu-bar switch or **Control–Option–Command–D**. **Esc** clears a visible desktop effect.
+
+The sample preview works without Screen Recording access. Automatic lid effects require a compatible sensor. macOS 14 or newer is required; a universal app supports both processor architectures but does not mean every MacBook exposes a usable sensor. See the [tested, unsupported, and unverified configurations](docs/COMPATIBILITY.md).
+
+## Your screen stays yours
+
+Screen content stays on your Mac. It is never saved, uploaded, or included in diagnostics. DuoLid captures no microphone or system audio. The opening sounds are synthesized locally. No account, analytics, or advertising SDK is included.
+
+Update checks are optional. Sparkle contacts GitHub when you check manually or enable automatic checking; GitHub may receive ordinary connection metadata such as your IP address and user-agent. The app verifies signed feeds and archives. Silent installation and system profiling default off.
+
+<details>
+<summary><strong>Compatibility and limitations</strong></summary>
+
+Lid sensing uses an undocumented Apple HID interface and can vary by Mac model or macOS release. Unsupported machines retain a working sample preview. External-only and mirrored display configurations are excluded.
+
+The beta uses SDR/sRGB capture, so HDR highlights may look different while the effect is active. Protected video and the lock screen may not be capturable. DuoLid is an aesthetic effect, not a privacy lock, and it does not change macOS sleep behavior.
+
+</details>
+
+## Availability
+
+The first planned release is **0.9.0-beta.1**. The download button activates only after the notarized release assets are published and verified. The current beta is still in preparation: presentation testing and the previously reported pink-screen interruption remain release blockers. [Release acceptance](docs/release/acceptance.json) records the evidence; passing source tests alone is not release acceptance.
+
+Stable **1.0.0** follows broader physical hardware testing. Downloads, release notes, source, and the signed update feed are hosted on GitHub. No separate website is needed.
+
+## Build from source
+
+Use Xcode with a Swift 6 toolchain. Sparkle **2.9.6** is pinned through Swift Package Manager.
 
 ```sh
+git clone https://github.com/thetejasagrawal/DuoLid.git
+cd DuoLid
 swift test -c release -Xswiftc -warnings-as-errors
 bash scripts/build.sh development
-# Safe configuration inspection: no Metal preview, desktop capture, or overlay.
 open dist/development/DuoLid.app --args --settings-only
 ```
 
-Open `Package.swift` in Xcode to develop the app. Development packaging creates an ad-hoc signed universal app with the separate identifier `app.duolid.DuoLid.Development`. It never overwrites an installed copy or changes the production app's permission record.
+The last command opens configuration without Metal previews, capture, or an overlay. Development builds use a separate identifier and never overwrite an installed copy. Open `Package.swift` in Xcode to work on the app.
 
-`bash scripts/build.sh release` requires a clean commit, the intended Developer ID identity, and Xcode's Metal Toolchain. It precompiles the shaders, signs every embedded helper, and checks both architecture slices and the macOS 14 target. [Release instructions](docs/RELEASING.md) cover notarization, installation testing, appcast signing, and the separate publication gate. Private signing assets never enter GitHub Actions.
+Release builds require the intended Developer ID identity, a clean commit, and Xcode's Metal Toolchain. Signing and notarization stay local; CI receives no private keys. See the [release process](docs/RELEASING.md).
 
-Visible presentation diagnostics require an explicit `--allow-visible-test` flag. Do not run them on a working desktop while investigating the reported graphics interruption. CPU behavior tests and static bundle checks do not launch DuoLid.
+<details>
+<summary><strong>Rendering and verification</strong></summary>
 
-To export the icon:
+IOKit reads the hinge sensor nonexclusively. Sensor samples feed synchronized render state directly; SwiftUI angle readouts are throttled. A display-driven spring smooths steps and reversals.
 
-```sh
-swift scripts/make-icon.swift
-iconutil -c icns .build/DuoLid.iconset -o Resources/DuoLid.icns
-```
+ScreenCaptureKit captures the built-in display at Retina resolution and excludes DuoLid's own overlay. Dense Gaussian blur uses floating-point intermediates. Broad blur uses a filtered 2× reduction; sharp content and final output remain full resolution. The blur front moves top to bottom and the desktop rotates around its bottom edge.
 
-## How it works
+A dedicated render owner limits pending GPU work and retains captured inputs until completion. The overlay is revealed only after both successful GPU completion and actual presentation. Interrupted or failed sessions are hidden and retired; undrained graphics resources remain retained until exit.
 
-IOKit reads the built-in hinge sensor nonexclusively. Its latest sample goes directly to synchronized render state; SwiftUI angle readouts are throttled. A display-driven, critically damped spring interpolates sensor steps and reversals.
+Visible diagnostics require an explicit opt-in. Keep them off a working desktop while investigating a graphics interruption. [Architecture](docs/ARCHITECTURE.md) and [verification](docs/VERIFICATION.md) document ownership, recovery, and acceptance tests.
 
-ScreenCaptureKit captures the active, non-mirrored built-in display at its Retina backing size. DuoLid excludes its own overlay from capture. Metal Performance Shaders apply a dense Gaussian blur with floating-point intermediates. Small blur uses native resolution; broad blur uses filtered 2× reduction and reconstruction. Sharp content and final output stay at native resolution. A feathered blur front travels from top to bottom while the desktop rotates around its bottom edge.
+</details>
 
-An AppKit display link owns a dedicated render loop. Two pending GPU frames are the limit; captured inputs remain retained until completion. The app waits for both valid GPU completion and an actual presentation callback before revealing the effect. A stalled session trips a circuit breaker. Reopening, pausing, sensor loss, display changes, sleep, and an inactive session hide the overlay and retire capture. See [architecture](docs/ARCHITECTURE.md) for ownership and recovery details.
+---
 
-## Privacy and limits
+[Contribute](CONTRIBUTING.md) · [Report a bug](https://github.com/thetejasagrawal/DuoLid/issues/new/choose) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md) · [Reference study](docs/REFERENCE-STUDY.md)
 
-Screen content stays on the Mac and is not saved, uploaded, or included in diagnostics. DuoLid captures no microphone or system audio. Its short opening sounds are synthesized locally. No analytics, account, or advertising SDK is included.
-
-Sparkle contacts GitHub when you check for updates or opt into automatic checking. Downloads may use GitHub's asset CDN. GitHub receives ordinary network metadata such as IP address and user-agent. System profiling and silent installation default off; installation requires user interaction. Diagnostics contain technical capability and aggregate timing data only.
-
-Lid sensing relies on an undocumented Apple HID interface and can vary with hardware and OS updates. Protected video and the lock screen may not be capturable. DuoLid is an aesthetic effect, not a privacy lock, and does not change macOS sleep behavior. External-only and mirrored display configurations are excluded. This beta uses SDR/sRGB capture; HDR highlights may look different during the effect.
-
-See the [reference study](docs/REFERENCE-STUDY.md), [third-party notices](THIRD_PARTY_NOTICES.md), and [MIT license](LICENSE).
+Made by [Tejas Agrawal](https://github.com/thetejasagrawal). Released under the [MIT license](LICENSE). [Third-party notices](THIRD_PARTY_NOTICES.md).

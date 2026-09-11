@@ -6,7 +6,7 @@ Start with `swift test -c release -Xswiftc -warnings-as-errors`. Keep changes fo
 
 Do not run a full-screen diagnostic on someone else's working display. The current pink-screen incident is unresolved. `--settings-only` disables all Metal previews and desktop effects without changing saved preferences. The safety interlock must remain in place until supported by live evidence.
 
-Never commit captured desktop pixels, raw crash logs, signing certificates, private keys, account credentials, build artifacts, or notarization logs. Share Settings → Copy diagnostics when useful; inspect it before submitting. Website media must use synthetic content through the actual renderer.
+Never commit captured desktop pixels, raw crash logs, signing certificates, private keys, account credentials, build artifacts, or notarization logs. Share Settings → Copy diagnostics when useful; inspect it before submitting. README demonstration media must use synthetic content through the actual renderer.
 
 Render resources belong to one render owner. New callback state needs a documented synchronization boundary; do not suppress Swift 6 warnings or blanket-mark mutable UI state as Sendable. Preserve the production bundle identifier and preference keys. New settings must migrate without resetting independent choices.
 

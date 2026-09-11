@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="248" height="52" viewBox="0 0 248 52" role="img" aria-label="Beta download coming soon">
+  <rect x=".5" y=".5" width="247" height="51" rx="13" fill="#30323b" stroke="#777b8c" stroke-opacity=".35"/>
+  <g fill="none" stroke="#aeb6d6" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M28 16v15m-5-5 5 5 5-5m-13 8v3h16v-3"/></g>
+  <text x="49" y="32" fill="#e7e9f1" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="16" font-weight="600">Beta coming soon</text>
+</svg>

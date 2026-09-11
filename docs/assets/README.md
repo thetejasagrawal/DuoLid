@@ -1,4 +1,4 @@
-# Website media
+# README media
 
 - `icon.png`: the app's approved icon export, from owner-supplied artwork edited through OpenAI Image Generation.
 - `fold.png`, `neutral-fold.png`, and `duolid-demo.mp4`: synthetic `PreviewDesktop` content processed through the application's actual `MetalRenderer`, exported offscreen. No user's screen is captured. The precomputed video illustrates appearance, not live frame pacing or measured performance.

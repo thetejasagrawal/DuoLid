@@ -2,7 +2,6 @@ name: Source checks
 on:
   push:
     branches: [main]
-    paths-ignore: ['site/**']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -33,11 +32,12 @@ jobs:
         run: swift test -c release --disable-automatic-resolution -Xswiftc -warnings-as-errors
       - name: Check universal development packaging
         run: bash scripts/build.sh development
-      - name: Check scripts and website
+      - name: Check scripts and README release links
         run: |
           for script in scripts/*.sh; do bash -n "$script"; done
           python3 -m py_compile scripts/*.py
-          python3 scripts/check-site.py
+          python3 -m unittest discover -s scripts/tests
+          python3 scripts/check-repository.py
       - name: Ensure visible diagnostics require opt-in
         run: |
           set +e

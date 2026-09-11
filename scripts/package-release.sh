@@ -49,7 +49,7 @@ xcrun stapler validate "$output/$dmg"
 spctl --assess --type open --context context:primary-signature --verbose=2 "$output/$dmg"
 ditto -c -k --sequesterRsrc --keepParent "$app" "$output/$archive"
 cp "$output/$archive" "$output/feed/"
-if [ -f site/appcast.xml ]; then cp site/appcast.xml "$output/feed/appcast.xml"; fi
+if [ -f updates/appcast.xml ]; then cp updates/appcast.xml "$output/feed/appcast.xml"; fi
 cp docs/release/notes.md "$output/feed/DuoLid-$version.md"
 tool_dir="$(bash scripts/fetch-sparkle.sh)"
 channel=(--maximum-deltas 0)
@@ -57,7 +57,7 @@ if [[ "$version" == *-beta* ]]; then channel+=(--channel beta); fi
 "$tool_dir/bin/generate_appcast" --account app.duolid.DuoLid --versions "$build" \
     --maximum-versions 0 --embed-release-notes "${channel[@]}" \
     --download-url-prefix "https://github.com/thetejasagrawal/DuoLid/releases/download/v$version/" \
-    --link 'https://thetejasagrawal.github.io/DuoLid/' "$output/feed"
+    --link 'https://github.com/thetejasagrawal/DuoLid' "$output/feed"
 cp "$output/feed/appcast.xml" "$output/appcast.xml"
 (cd "$output" && shasum -a 256 "$dmg" "$archive" appcast.xml provenance.json > SHA256SUMS)
 python3 scripts/verify-candidate.py "$output"
